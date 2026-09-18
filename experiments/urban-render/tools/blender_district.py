@@ -128,9 +128,14 @@ def main():
             m=Matrix(entry['matrix']);center=m.translation
             view_specs.append(('entrance',center+m.to_3x3()@Vector((3,-9,1.6)),center+Vector((0,0,1.8))))
             report['detail_views']=[]
+            inspection=bpy.data.objects.new('InspectionCamera',cam_data.copy())
+            scene.collection.objects.link(inspection);scene.camera=inspection
             for label,position,target in view_specs:
-                cam.location=position;cam.rotation_euler=(target-position).to_track_quat('-Z','Y').to_euler()
+                inspection.location=position;inspection.rotation_euler=(target-position).to_track_quat('-Z','Y').to_euler()
+                if inspection.animation_data is not None:raise RuntimeError('Inspection camera must not have an animation track')
                 path=out/(label+'.png');scene.render.filepath=str(path);bpy.ops.render.render(write_still=True)
+                evaluated=inspection.evaluated_get(bpy.context.evaluated_depsgraph_get())
+                if (evaluated.matrix_world.translation-position).length>1e-5:raise RuntimeError('Inspection camera pose was overridden')
                 report['detail_views'].append({'name':label,'frame_time_s':0,'position':list(position),'target':list(target),'sha256':hashlib.sha256(path.read_bytes()).hexdigest()})
         report.update(completed=True,engine=engine,blend_path=str(out/'district.blend'),samples_requested=a.samples,
             width=scene.render.resolution_x*a.resolution_percent//100,height=scene.render.resolution_y*a.resolution_percent//100,

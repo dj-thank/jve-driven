@@ -16,6 +16,10 @@ for node in scene.graph.nodes_geometry:
         triangles.append([*[round(float(c), 3) for c in vertices[ids, :3].flatten()], *rgba[:3].tolist(), 0 if name=="assumed_flat_ground" else 1 if name.startswith("osm_road_surface") else 2])
 runs = {p.stem: json.loads(p.read_text()) for p in sorted((ROOT/'reports').glob('*.json'))
         if p.stem in {'clear','red_light','pedestrian','obstacle','occlusion','disconnect','stale_reply','adversarial_fixture'}}
+# Full control/API evidence stays in the run files, not the lightweight replay.
+for run in runs.values():
+    run.pop('steps', None)
+    run.pop('jev_evidence', None)
 data = json.dumps({'world':world, 'triangles':triangles, 'runs':runs}, ensure_ascii=False, separators=(',',':')).replace('</','<\\/')
 template = (ROOT/'web/template.html').read_text()
 output = template.replace('/*BUNDLED_DATA*/{}', data)

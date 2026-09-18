@@ -104,10 +104,16 @@ def request_once(obs: Observation,key: str,requested_wall: float,model: str=MODE
     body=payload(obs,model)
     data=asyncio.run(_request_async(body,key,total_timeout))
     result=parse_response(data,obs,requested_wall,model)
-    # Never record headers or the key. Only simulated state / provider response.
+    # Retain only application JSON, never authorization headers. Reject an echoed key.
+    if key and key in json.dumps(data, sort_keys=True):
+        raise JevError('credential_echo_rejected')
+    received_wall=time.monotonic()
     evidence={'snapshot_frame':obs.frame,'snapshot_sim_time':obs.sim_time,'model':model,
               'request_sha256':hashlib.sha256(json.dumps(body,sort_keys=True).encode()).hexdigest(),
-              'latency_ms':(time.monotonic()-requested_wall)*1000,'response':data}
+              'latency_ms':(received_wall-requested_wall)*1000,'response':data,
+              'request':body,'requested_wall':requested_wall,'received_wall':received_wall,
+              'response_sha256':hashlib.sha256(json.dumps(data,sort_keys=True).encode()).hexdigest(),
+              'transport':'official_https_api'}
     return result,evidence
 
 
@@ -137,40 +143,60 @@ class DecisionService:
         self.disabled=False
         self.last_error: str|None=None
         self.evidence: list[dict[str,Any]]=[]
+        self.pending_observation: Observation|None=None
+        self.closed=False
+
+    def _consume(self,now: float,obs: Observation|None,*,after_control_loop=False):
+        if self.future is None or not self.future.done():
+            return
+        try:
+            self.latest,record=self.future.result()
+            record=dict(record)
+            record['collected_after_control_loop']=after_control_loop
+            self.evidence.append(record)
+            self.last_error=None
+            self.failures=0
+        except Exception as exc:
+            self.latest=None
+            status=exc.http_status if isinstance(exc,JevError) else None
+            self.last_error=f'HTTP_{status}' if status else type(exc).__name__
+            self.failures+=1
+            delay=min(30,2**min(self.failures,5))
+            if isinstance(exc,JevError) and exc.retry_after_s is not None:
+                delay=max(delay,exc.retry_after_s)
+            if status in {401,403,422}: self.disabled=True
+            self.evidence.append({'snapshot_sim_time':obs.sim_time if obs else None,
+                'snapshot_frame':obs.frame if obs else None,'error':self.last_error,
+                'backoff_s':delay,'disabled':self.disabled,
+                'collected_after_control_loop':after_control_loop})
+            self.next_at=max(self.next_at,now+delay)
+        self.future=None
+        self.pending_observation=None
 
     def poll(self,obs: Observation) -> Proposal|None:
+        if self.closed:
+            raise JevError('decision_service_closed')
         now=time.monotonic()
-        if self.future is not None and self.future.done():
-            try:
-                self.latest,record=self.future.result()
-                self.evidence.append(record)
-                self.last_error=None
-                self.failures=0
-            except Exception as exc:
-                self.latest=None
-                # A bounded, sanitized error code; no payload or authorization headers.
-                status=exc.http_status if isinstance(exc,JevError) else None
-                self.last_error=f'HTTP_{status}' if status else type(exc).__name__
-                self.failures+=1
-                delay=min(30,2**min(self.failures,5))
-                if isinstance(exc,JevError) and exc.retry_after_s is not None:
-                    delay=max(delay,exc.retry_after_s)
-                if status in {401,403,422}: self.disabled=True
-                self.evidence.append({'snapshot_sim_time':obs.sim_time,'error':self.last_error,
-                                      'backoff_s':delay,'disabled':self.disabled})
-                self.next_at=max(self.next_at,now+delay)
-            self.future=None
+        self._consume(now,self.pending_observation or obs)
         if not self.disabled and self.future is None and now>=self.next_at:
             if self.calls>=self.max_calls:
                 self.last_error='call_budget_exhausted'
-                # Do not perpetually reuse the last decision after the budget expires.
                 self.latest=None
             else:
                 self.calls+=1
                 self.next_at=now+.5
+                self.pending_observation=obs
                 self.future=self.pool.submit(request_once,obs,self.key,now,self.model)
         return self.latest
 
     def close(self):
-        self.pool.shutdown(wait=True,cancel_futures=True)
-        self.key=''
+        if self.closed: return
+        self.closed=True
+        try:
+            self.pool.shutdown(wait=True,cancel_futures=True)
+            # A response finishing at shutdown is recorded, not silently dropped;
+            # it is NOT automatically counted as a decision used for driving.
+            self._consume(time.monotonic(),self.pending_observation,after_control_loop=True)
+        finally:
+            self.key=''
+            self.latest=None

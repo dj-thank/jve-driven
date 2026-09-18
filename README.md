@@ -48,7 +48,17 @@ python -m jevdrive.publicworld audit runs/marunouchi
 
 出力は `public-world.json`、`download-lock.json`、`source-lock.json`、`visual-world.glb`、`visual-audit.json` です。GLBだけでなく、選択したタイル・座標変換・取得設定・道路の派生データまで検査します。ハッシュは改変検出用であり、公開元の署名や測量精度の証明ではありません。
 
-現在の変換器は明示的タイルツリー、GLB/b3dmに対応します。implicit tiling、Draco、meshopt、BasisU、外部glTF画像等は未対応で、黙って欠落させず停止します。未対応形式の拡張は回帰テストを追加して行います。
+現在の変換器は明示的タイルツリー、GLB/b3dm、PLATEAUの旧CESIUM_RTC原点指定に対応します。Draco/meshoptの圧縮形状はNode.js 20以上と明示的な有効化が必要です。実際の東京データにもDracoが含まれます。先に以下を実行してください。
+
+```bash
+npm install --ignore-scripts --no-audit --no-fund --prefix tools/gltf
+# bash / zsh
+export JEVDRIVE_DECODE_GEOMETRY=1
+# PowerShellでは: $env:JEVDRIVE_DECODE_GEOMETRY="1"
+python tools/check_decoder.py
+```
+
+原本を保持し、展開器・依存設定・入出力のハッシュを記録します。形状の簡略化や架空のテクスチャ補完はしません。implicit tiling、BasisU画像、外部glTF画像等は未対応で、黙って欠落させず停止します。
 
 ## Blender / Unreal / CARLA
 
@@ -70,11 +80,17 @@ Choiceで行動、Noulで歩行者の譲歩要否、Scoreで視界の注意度�
 
 ## 検証とCI
 
-ローカルでは168テスト、8つのオフラインシナリオ、GLB再生成を確認しました。168件は合成HTTP/地形/GLB試験と簡略走行試験であり、実都市の精度・Jev性能・実車安全性を示しません。
+ローカルの**192テスト**と、Linux Python 3.10–3.13 / Windows 3.12 のCIを検証しています。8つのオフライン走行シナリオ、歴史的OSMからのGLB生成、ブラウザーの基本操作も確認しました。これらの合成試験を実都市の精度やJev性能の証拠とは扱いません。
 
-`offline-validation` はLinuxのPython 3.10–3.13とWindows 3.12でテスト・構文・秘密情報チェック・生成処理を実行する設定です。`public-world-live-check` はキーなしの実データ取得と変換を試し、失敗してもJSON診断を残します。CIの成功はActionsの実際の結果で確認してください。配信元障害とコード回帰を区別し、失敗を `continue-on-error` で隠しません。公開画像・生タイルはCI成果物へ自動公開しません。
+**2026-09-18、東京・丸の内の実公開データからの取得→圧縮展開→座標変換→GLB生成→監査がGitHub Actionsで成功しました。** 18リソース / 9,305,948 bytesを取得し、44,145,612 bytesのGLB、30,268三角形、23メッシュを生成。OSM中心線は45件です。テクスチャを持つ三角形は約74.37%であり、全面が写真テクスチャになったわけではありません。建物タイルは指定範囲の外側の地物を含みます。23メッシュは建物23棟という意味ではありません。
 
-次工程と証拠要件は [完了条件](docs/ACCEPTANCE_BACKLOG.md)。エージェントは [AGENTS.md](AGENTS.md) を先に読んでください。
+実行記録: [public-world-live-check / 35310001462](https://github.com/dj-thank/jve-driven/actions/runs/35310001462)。この実行のGLB SHA-256は `24c312c68d29236090241b8461a54311daab92007ed2854c0b2665745bddad90`。生データと生成GLBは自動公開せず、取得・変換・監査JSONを成果物として保存しました。各データの利用条件を確認してから配布してください。
+
+地上視点での写実性・測量精度、Blender/Unreal/CARLA実行、実Jev推論は未検証です。地表の高さは楕円体基準で、海抜標高とは異なります。現在のカタログやOSMが更新された場合は新しいスナップショットを作成し、上記ハッシュとの一致を要求しないでください。
+
+`offline-validation` はLinuxのPython 3.10–3.13とWindows 3.12でテスト・構文・秘密情報チェック・生成処理を実行する設定です。`public-world-live-check` はキーなしの実データ取得と変換を試し、失敗してもJSON診断を残します。実データCIには、取得後に外部ネットワークを無効化した環境（Linux `unshare --net`）で同じGLBを再生成・比較する工程もあります。CIの成功は対象コミットのActions結果で確認してください。配信元障害とコード回帰を区別し、失敗を `continue-on-error` で隠しません。公開画像・生タイルはCI成果物へ自動公開しません。
+
+次工程は [#2 地上視点と精度](https://github.com/dj-thank/jve-driven/issues/2)、[#3 走行レイヤー](https://github.com/dj-thank/jve-driven/issues/3)、[#4 Jev比較評価と認識](https://github.com/dj-thank/jve-driven/issues/4) に具体化しています。証拠要件は [完了条件](docs/ACCEPTANCE_BACKLOG.md)。エージェントは [AGENTS.md](AGENTS.md) を先に読んでください。
 
 ## 出典と利用条件
 

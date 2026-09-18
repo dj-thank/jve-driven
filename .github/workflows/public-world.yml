@@ -8,6 +8,7 @@ on:
       - 'tools/live_world_check.py'
       - 'tools/gltf/**'
       - 'tools/check_decoder.py'
+      - 'tools/check_offline_rebuild.py'
       - '.github/workflows/public-world.yml'
   workflow_dispatch:
 permissions:
@@ -35,6 +36,8 @@ jobs:
         run: python tools/check_decoder.py
       - name: Acquire real public data (120 MB / 180 resources maximum)
         run: python tools/live_world_check.py --config configs/tokyo-smoke.json --out runs/public-smoke
+      - name: Rebuild exact snapshot with external networking disabled
+        run: sudo unshare --net env JEVDRIVE_DECODE_GEOMETRY=1 PATH="$PATH" "$(command -v python)" tools/check_offline_rebuild.py runs/public-smoke
       - name: Preserve diagnostics, never publish unreviewed imagery or meshes
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
@@ -46,5 +49,7 @@ jobs:
             runs/public-smoke/download-lock.json
             runs/public-smoke/source-lock.json
             runs/public-smoke/visual-audit.json
+            runs/public-smoke/offline-rebuild.json
+            tools/gltf/package-lock.json
           if-no-files-found: error
           retention-days: 14

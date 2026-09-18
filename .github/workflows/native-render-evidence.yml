@@ -1,0 +1,29 @@
+name: native-render-evidence
+on:
+  push:
+    branches: [feat/native-lod3-render-20260918]
+    paths: ['.github/workflows/native-render-evidence.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  attach-completed-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Retrieve the completed, attributed preview from this repository's draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          mkdir -p evidence
+          gh release download native-render-evidence-20260918 --pattern 'native-render-evidence.zip' --dir evidence
+          test -s evidence/native-render-evidence.zip
+          echo "28b3ce4ed861f8ca871c4e07c4ccd607c955dc42c973cfd647c8ead50a27eb87  evidence/native-render-evidence.zip" | sha256sum --check
+      - name: Expose research preview without publishing raw city meshes or fonts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: native-render-evidence
+          path: evidence/native-render-evidence.zip
+          if-no-files-found: error
+          retention-days: 14

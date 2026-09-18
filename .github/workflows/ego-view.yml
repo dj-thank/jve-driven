@@ -37,7 +37,7 @@ jobs:
       - name: Acquire real data, add street-level layers, plan ego-camera path
         run: python tools/prepare_ego_capture.py --config configs/tokyo-ego.json --out runs/ego
       - name: Execute Blender camera rendering
-        run: blender --background --threads 2 --python tools/blender_ego_capture.py -- --capture runs/ego
+        run: blender --background --threads 2 --python-exit-code 2 --python tools/blender_ego_capture.py -- --capture runs/ego
       - name: Encode and verify real rendered frames
         run: python tools/encode_ego_capture.py runs/ego
       - name: Upload attributed derived renders, not raw world databases

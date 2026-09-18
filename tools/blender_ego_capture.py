@@ -64,8 +64,11 @@ def main():
     camera_data.lens = 36/(2*math.tan(math.radians(spec['horizontal_fov_deg'])/2))
     camera_data.clip_start = .05; camera_data.clip_end = 3000
     camera_data.dof.use_dof = False
-    scene.render.engine = 'CYCLES'; scene.cycles.device = 'CPU'; scene.cycles.samples = 8
-    scene.cycles.use_denoising = True; scene.cycles.seed = 41
+    scene.render.engine = 'CYCLES'; scene.cycles.device = 'CPU'; scene.cycles.samples = 16
+    scene.cycles.use_denoising = False; scene.cycles.seed = 41
+    scene.render.use_persistent_data = True
+    # Ubuntu Blender 4.0.2 is built without OpenImageDenoiser. Record this
+    # explicitly and render more native samples; no AI detail is generated.
     scene.cycles.max_bounces = 2; scene.cycles.diffuse_bounces = 1; scene.cycles.glossy_bounces = 1
     scene.render.resolution_x = spec['width']; scene.render.resolution_y = spec['height']
     scene.render.resolution_percentage = 100
@@ -77,7 +80,8 @@ def main():
     # Blender camera local axes x=right,y=up,-z=forward, unlike optical axes.
     optical_to_blender = Matrix.Diagonal((1.0, -1.0, -1.0, 1.0))
     evidence = {'schema': 'jevdrive.blender-ego-render.v1', 'renderer': bpy.app.version_string,
-                'engine': scene.render.engine, 'device': 'CPU', 'samples': 8,
+                'engine': scene.render.engine, 'device': 'CPU', 'samples': 16, 'denoising': False,
+                'denoising_note': 'Ubuntu 4.0.2 lacks OpenImageDenoiser; native Cycles samples only',
                 'camera': spec, 'scene_sha256': record['scene_sha256'],
                 'capture_sha256': hashlib.sha256(data).hexdigest(), 'photo_materials': photo_materials,
                 'lighting': 'assumed daylight; source photograph materials use emission to avoid double lighting',

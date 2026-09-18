@@ -135,7 +135,7 @@ def test_recorder_cli_keeps_baseline_and_missing_key_distinct(tmp_path):
             '--mode',mode,'--seconds','1','--out',str(out)],cwd=ROOT,env=env,
             input='',capture_output=True,text=True,timeout=10)
         assert proc.returncode==expected
-        report=json.loads((out/'execution.json').read_text())
+        report=json.loads((out/'execution.json').read_text(encoding='utf8'))
         assert not report['live_control_evidence_present']
         assert report['completed'] is (mode=='baseline')
         if mode=='jev-live': assert not (out/'run.json').exists()

@@ -42,7 +42,7 @@ def convert(carla: Any, osm: Path, output: Path, projection: str=DEFAULT_PROJ) -
         'input_sha256':meta['input_sha256'],'projection':projection,
         'source_snapshot_utc':meta['source_snapshot_utc'],'road_width':'assumed 3m per lane',
         'all_junctions_with_traffic_lights':False,
-        'limitations':'Road conversion only. No GLB buildings, exact lane topology or surveyed elevation.'},indent=2))
+        'limitations':'Road conversion only. No GLB buildings, exact lane topology or surveyed elevation.'},indent=2), encoding='utf8')
 
 
 def _speed(v):
@@ -184,7 +184,7 @@ def run(carla: Any, args) -> None:
         args.out.write_text(json.dumps({'schema':'jevdrive.carla_debug_run.v1','mode':args.mode,'completed_without_exception':completed,
             'observation_source':'ground_truth_debug','frames':frames,'collisions':collision_events,
             'jev_calls':service.calls if service else 0,'jev_evidence':service.evidence if service else [],
-            'limitations':'Unvalidated CARLA adapter. No GLB scenery import, perception or driving-safety claim.'},indent=2))
+            'limitations':'Unvalidated CARLA adapter. No GLB scenery import, perception or driving-safety claim.'},indent=2), encoding='utf8')
 
 
 def main():

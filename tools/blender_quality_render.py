@@ -5,6 +5,73 @@ from pathlib import Path
 
 def sha(path): return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
+def apply_building_finish(material, *, source_only):
+    """Optional appearance edit, never part of the imported-material baseline.
+
+    No bpy import is needed for the policy; native shader/socket objects are
+    supplied by the caller. Linked inputs are left unchanged. Every modified
+    scalar is recorded, including metallic changes that were previously hidden.
+    """
+    if source_only or material is None or not material.use_nodes:
+        return []
+    changes=[]
+    for shader in material.node_tree.nodes:
+        if shader.type!='BSDF_PRINCIPLED':
+            continue
+        entry={'material':material.name,'shader':shader.name}
+        roughness=shader.inputs['Roughness']
+        metallic=shader.inputs['Metallic']
+        if not roughness.is_linked and roughness.default_value<.1:
+            entry.update(old_roughness=float(roughness.default_value),new_roughness=.75)
+            roughness.default_value=.75
+        if not metallic.is_linked and metallic.default_value!=0:
+            entry.update(old_metallic=float(metallic.default_value),new_metallic=0.0)
+            metallic.default_value=0.0
+        if len(entry)>2:
+            changes.append(entry)
+    return changes
+
+
+def record_surface_appearance(material, *, paving_look):
+    """Describe colour replacement separately from generic normal/roughness."""
+    material['generic_microdetail']=True
+    material['source_base_color_preserved']=not paving_look
+    # Retain the legacy key but never claim preservation after replacing albedo.
+    material['source_ortho_colour_preserved']=not paving_look
+    if paving_look:
+        material['appearance_override']='Generic CC0 paving, not surveyed Tokyo material'
+
+
+def new_material(material, seen):
+    """Shared mesh materials receive one shader graph, not one per object."""
+    identity=material.as_pointer()
+    if identity in seen:
+        return False
+    seen.add(identity)
+    return True
+
+
+def select_output_frames(plan, *, animation):
+    """Deduplicate still selections; validate the discrete native frame clock."""
+    frames=plan.get('frames')
+    fps=plan.get('fps')
+    if not isinstance(frames,list) or not frames:
+        raise ValueError('Camera plan needs nonempty frames')
+    if isinstance(fps,bool) or not isinstance(fps,int) or not 1<=fps<=60:
+        raise ValueError('Camera plan fps must be an integer in [1,60]')
+    for expected,sample in enumerate(frames,1):
+        value=sample.get('frame')
+        t=sample.get('time_s')
+        if isinstance(value,bool) or not isinstance(value,int) or value!=expected:
+            raise ValueError('Camera frames must be contiguous from 1')
+        if (isinstance(t,bool) or not isinstance(t,(int,float)) or
+                not math.isfinite(t) or abs(t-(expected-1)/fps)>1e-8):
+            raise ValueError('Camera frame timestamp differs from render clock')
+    if animation:
+        return list(range(1,len(frames)+1))
+    return sorted({1,max(1,len(frames)//2),len(frames)})
+
+
 def main():
     import bpy
     from mathutils import Vector
@@ -18,10 +85,13 @@ def main():
     ap.add_argument('--details',type=Path)
     ap.add_argument('--ground',type=Path)
     ap.add_argument('--appearance',type=Path)
+    ap.add_argument('--look-preset',choices=['legacy','neutral-daylight'],default='legacy')
+    ap.add_argument('--tree-grates',action='store_true',help='Explicit procedural root dressing; not measured infrastructure')
     ap.add_argument('--engine',choices=['EEVEE','CYCLES'],default='EEVEE')
     ap.add_argument('--samples',type=int,default=64)
     ap.add_argument('--animation',action='store_true')
-    ap.add_argument('--source-only',action='store_true')
+    ap.add_argument('--source-only',action='store_true',
+        help='Preserve imported materials; illumination and input derivatives are separate')
     ap.add_argument('--paving-look',action='store_true',help='Generic CC0 paving appearance; not a local survey')
     ap.add_argument('--resolution-percent',type=int,default=100)
     args=ap.parse_args(sys.argv[sys.argv.index('--')+1:])
@@ -39,6 +109,14 @@ def main():
         from jevdrive.visual_enrichment import validate_tree_layer
         visual_layer=json.loads(args.tree_layer.read_text(encoding='utf8'))
         validate_tree_layer(visual_layer,plan,sha(args.plan))
+    output_frames=select_output_frames(plan,animation=args.animation)
+    if args.tree_grates and (args.source_only or not args.tree_layer):
+        raise ValueError('Tree grates require an authored layer and cannot be source-only')
+    sys.path.insert(0,str(Path(__file__).resolve().parent))
+    import native_lookdev
+    code_hashes={str(Path(__file__).resolve()):sha(__file__),str(Path(native_lookdev.__file__).resolve()):sha(native_lookdev.__file__)}
+    uv_origin=plan['frames'][0]['xyz'][:2]
+    uv_forward=[plan['frames'][0]['target'][i]-uv_origin[i] for i in range(2)]
     pack=json.loads((assets/'asset-lock.json').read_text(encoding='utf8'))
     if sha(snapshot/'visual-world.glb')!=plan['source_glb_sha256']:
         raise ValueError('Plan and visual-world GLB differ')
@@ -79,6 +157,7 @@ def main():
     elif 'details_glb_sha256' in plan:
         raise ValueError('Plan needs its LOD3 detail geometry')
     scene=bpy.context.scene; scene.unit_settings.system='METRIC'
+    initial_materials=native_lookdev.material_snapshot(scene)
     scene.render.engine='CYCLES' if args.engine=='CYCLES' else 'BLENDER_EEVEE'
     device='CPU' if args.engine=='CYCLES' else 'EEVEE graphics device'
     if args.engine=='CYCLES':
@@ -94,18 +173,12 @@ def main():
     scene.render.image_settings.color_mode='RGB'
     scene.view_settings.view_transform='AgX'; scene.view_settings.look='AgX - Medium High Contrast'
     scene.view_settings.exposure=0.8
-    material_overrides=[]
+    material_overrides=[]; finished_materials=set()
     for obj in scene.objects:
         if obj.type!='MESH' or not obj.name.startswith('public_building_'): continue
         for mat in obj.data.materials:
-            if not mat or not mat.use_nodes: continue
-            for shader in mat.node_tree.nodes:
-                if shader.type!='BSDF_PRINCIPLED': continue
-                r=shader.inputs['Roughness']; metal=shader.inputs['Metallic']
-                if not r.is_linked and r.default_value<.1:
-                    material_overrides.append({'material':mat.name,'old_roughness':r.default_value,'new_roughness':.75})
-                    r.default_value=.75
-                if not metal.is_linked: metal.default_value=0
+            if mat is None or not new_material(mat,finished_materials): continue
+            material_overrides.extend(apply_building_finish(mat,source_only=args.source_only))
     scene['assumed_building_finish']=json.dumps(material_overrides)
     world=bpy.data.worlds.new('CC0_Sky_Not_Local_Weather'); world.use_nodes=True
     scene.world=world; nodes=world.node_tree.nodes; links=world.node_tree.links
@@ -116,18 +189,20 @@ def main():
     sun_data.angle=math.radians(6)
     sun=bpy.data.objects.new('Art_Direction_Sun',sun_data); scene.collection.objects.link(sun)
     sun.rotation_euler=(math.radians(25),math.radians(-15),math.radians(30))
+    lookdev=native_lookdev.configure_lighting(scene,args.look_preset)
     surface_prefix='detail_tran_' if args.details else 'public_terrain_'
     terrain_objects=[o for o in scene.objects if o.type=='MESH' and o.name.startswith(surface_prefix)]
     if not terrain_objects: raise ValueError('Rendered terrain not found')
     if not args.source_only:
+        detailed_materials=set()
         for obj in terrain_objects:
             uv=obj.data.uv_layers.new(name='DetailMetres')
             for loop in obj.data.loops:
                 p=obj.matrix_world @ obj.data.vertices[loop.vertex_index].co
-                uv.data[loop.index].uv=(p.x/pack['paving_repeat_m'],p.y/pack['paving_repeat_m'])
+                uv.data[loop.index].uv=(p.x/pack['paving_repeat_m'],p.y/pack['paving_repeat_m']) if args.look_preset=='legacy' else native_lookdev.paving_uv(p.x,p.y,uv_origin,uv_forward,pack['paving_repeat_m'])
             for mat in obj.data.materials:
                 if not mat or not mat.use_nodes: continue
-                mat['generic_microdetail']=True; mat['source_ortho_colour_preserved']=True
+                if not new_material(mat,detailed_materials): continue
                 nt=mat.node_tree; bs=next((n for n in nt.nodes if n.type=='BSDF_PRINCIPLED'),None)
                 if bs is None: continue
                 coords=nt.nodes.new('ShaderNodeUVMap'); coords.uv_map='DetailMetres'
@@ -157,6 +232,7 @@ def main():
                 remap.inputs['To Min'].default_value=0.65; remap.inputs['To Max'].default_value=0.90
                 nt.links.new(rough.outputs['Color'],remap.inputs['Value'])
                 nt.links.new(remap.outputs['Result'],bs.inputs['Roughness'])
+                record_surface_appearance(mat,paving_look=args.paving_look)
     instances=[]
     placements=plan['trees']+visual_layer.get('trees',[])
     if not args.source_only and placements:
@@ -208,6 +284,7 @@ def main():
                     raise ValueError('Authored tree is not on its verified Blender source surface')
             instance['provenance']=json.dumps(item); scene.collection.objects.link(instance)
             instances.append(instance.name)
+    grates=native_lookdev.add_tree_grates(scene,visual_layer['trees'],terrain_objects) if args.tree_grates else []
     camera_data=bpy.data.cameras.new('EgoCamera_80deg')
     cam=bpy.data.objects.new('EgoCamera',camera_data); scene.collection.objects.link(cam)
     scene.camera=cam; cam.rotation_mode='QUATERNION'
@@ -215,6 +292,9 @@ def main():
     camera_data.lens=18/math.tan(math.radians(plan['horizontal_fov_degrees']/2))
     camera_data.clip_start=.05; camera_data.clip_end=4000
     camera_data.dof.use_dof=False
+    final_materials=native_lookdev.material_snapshot(scene)
+    if args.source_only and initial_materials!=final_materials:
+        raise RuntimeError('Imported-material reference changed during scene construction')
     residuals=[]
     for sample in plan['frames']:
         cam.location=sample['xyz']
@@ -246,10 +326,13 @@ def main():
     if args.animation:
         bpy.ops.render.render(animation=True)
     else:
-        for frame_id in (1, len(plan['frames'])//2, len(plan['frames'])):
+        for frame_id in output_frames:
             scene.frame_set(frame_id)
             scene.render.filepath=str(out/f'frame_{frame_id:04d}.png')
             bpy.ops.render.render(write_still=True)
+    if any(sha(path)!=digest for path,digest in code_hashes.items()):
+        raise RuntimeError('Renderer code changed during capture; evidence is invalid')
+    (out/'material-audit.json').write_text(json.dumps({'before':initial_materials,'after':final_materials,'unchanged':initial_materials==final_materials},indent=2),encoding='utf8')
     report={'schema':'jevdrive.native-render.v1','blender':bpy.app.version_string,
         'engine':scene.render.engine,'device':device,'samples_requested':args.samples,
         'source_glb_sha256':plan['source_glb_sha256'],'plan_sha256':sha(args.plan),
@@ -257,7 +340,7 @@ def main():
         'road_appearance_sha256':sha(args.appearance/'appearance.glb') if args.appearance else None,
         'ground_cutout_sha256':sha(args.ground/'ground.glb') if args.ground else None,
         'asset_lock_sha256':sha(assets/'asset-lock.json'),'script_sha256':sha(__file__),
-        'frames_rendered':len(plan['frames']) if args.animation else 3,
+        'frames_rendered':len(output_frames),'rendered_frame_ids':output_frames,
         'coverage_checks':len(residuals),'max_height_residual_m':max(residuals),
         'tree_instances':instances,'source_only':args.source_only,
         'authored_tree_count':len(visual_layer.get('trees',[])),
@@ -267,6 +350,16 @@ def main():
         'tree_placement_notice':'Authored, not surveyed; visual-only and not traffic actors' if visual_layer else None,
         'assumed_building_finish':material_overrides,
         'generic_paving_albedo':args.paving_look,
+        'lookdev':lookdev,'authored_tree_grates':grates,
+        'lookdev_helper_sha256':sha(native_lookdev.__file__),
+        'renderer_files_unchanged_during_capture':True,
+        'imported_materials_unchanged':initial_materials==final_materials,
+        'material_audit_sha256':sha(out/'material-audit.json'),
+        'paving_orientation':'legacy_world_axes' if args.look_preset=='legacy' else 'camera_route_aligned',
+        'authored_grates_notice':'Procedural appearance, not measured Tokyo tree pits; source meshes unchanged' if grates else None,
+        'imported_building_materials_preserved':not material_overrides,
+        'imported_road_base_color_preserved':not args.paving_look,
+        'source_only_scope':'imported material inputs; not measured illumination or unchanged preprocessing',
         'elapsed_s':time.monotonic()-started,'width':int(plan['width']*args.resolution_percent/100),
         'height':int(plan['height']*args.resolution_percent/100),'fps':plan['fps'],
         'jev_calls':0,'physics_simulated':False,'driveable':False,'photorealism_verified':False}

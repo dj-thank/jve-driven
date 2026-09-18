@@ -22,7 +22,7 @@ def fetched(tmp_path, roads=True):
 def test_selection_changes_are_rejected(tmp_path, key):
     _, out = fetched(tmp_path)
     path = out / 'public-world.json'
-    meta = json.loads(path.read_text())
+    meta = json.loads(path.read_text(encoding='utf8'))
     if key == 'config':
         meta[key]['origin']['longitude'] += .0001
     elif key == 'frame':
@@ -31,14 +31,14 @@ def test_selection_changes_are_rejected(tmp_path, key):
         meta[key][0]['transform_column_major'][12] += 10
     else:
         meta[key][0]['x'] += 1
-    path.write_text(json.dumps(meta))
+    path.write_text(json.dumps(meta), encoding='utf8')
     with pytest.raises(ValueError, match='Source selection'):
         build_snapshot(out)
 
 
 def test_roads_derived_file_is_sealed(tmp_path):
     _, out = fetched(tmp_path)
-    (out / 'roads-centerlines.geojson').write_text('{}')
+    (out / 'roads-centerlines.geojson').write_text('{}', encoding='utf8')
     with pytest.raises(ValueError, match='Derived source'):
         verify_sources(out)
 
@@ -46,9 +46,9 @@ def test_roads_derived_file_is_sealed(tmp_path):
 def test_download_lock_metadata_is_sealed(tmp_path):
     _, out = fetched(tmp_path)
     path = out / 'download-lock.json'
-    data = json.loads(path.read_text())
+    data = json.loads(path.read_text(encoding='utf8'))
     data['resources'][0]['url'] = BASE + 'changed'
-    path.write_text(json.dumps(data))
+    path.write_text(json.dumps(data), encoding='utf8')
     with pytest.raises(ValueError, match='Download lock changed'):
         verify_sources(out)
 
@@ -56,9 +56,9 @@ def test_download_lock_metadata_is_sealed(tmp_path):
 def test_duplicate_download_entries_rejected(tmp_path):
     _, out = fetched(tmp_path)
     path = out / 'download-lock.json'
-    data = json.loads(path.read_text())
+    data = json.loads(path.read_text(encoding='utf8'))
     data['resources'].append(data['resources'][0])
-    path.write_text(json.dumps(data))
+    path.write_text(json.dumps(data), encoding='utf8')
     with pytest.raises(ValueError, match='Duplicate'):
         verify_lock(out)
 
@@ -113,9 +113,9 @@ def test_resume_rejects_config_drift_without_replacing_manifest(tmp_path):
         with pytest.raises(httpx.HTTPStatusError):
             fetch_snapshot(config, out, client=client)
     original = (out / 'public-world.json').read_bytes()
-    changed = json.loads(config.read_text())
+    changed = json.loads(config.read_text(encoding='utf8'))
     changed['name'] = 'different dataset'
-    config.write_text(json.dumps(changed))
+    config.write_text(json.dumps(changed), encoding='utf8')
     with pytest.raises(ValueError, match='config differs'):
         fetch_snapshot(config, out, resume=True)
     assert (out / 'public-world.json').read_bytes() == original

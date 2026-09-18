@@ -20,7 +20,7 @@ def test_replay_strips_large_trace_but_keeps_original_run(tmp_path):
     runpy.run_path(str(tmp_path/'tools/build_viewer.py'))
     output=json.loads((tmp_path/'web/index.html').read_text(encoding='utf8'))
     assert output['runs']['clear']=={'mode':'baseline','frames':[]}
-    assert json.loads((tmp_path/'reports/clear.json').read_text())==original
+    assert json.loads((tmp_path/'reports/clear.json').read_text(encoding='utf8'))==original
 
 
 def test_live_workflow_is_manual_main_only_and_has_no_default_secret_exposure():

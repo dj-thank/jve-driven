@@ -50,7 +50,7 @@ def test_missing_coverage_fails():
 def test_asset_bytes_are_checked(tmp_path,tamper):
     data=b'fixture'; (tmp_path/'asset.bin').write_bytes(data)
     manifest={'resources':[{'path':'asset.bin','bytes':len(data),'sha256':hashlib.sha256(data).hexdigest()}]}
-    (tmp_path/'asset-lock.json').write_text(json.dumps(manifest))
+    (tmp_path/'asset-lock.json').write_text(json.dumps(manifest), encoding='utf8')
     if tamper:
         (tmp_path/'asset.bin').write_bytes(b'changed')
         with pytest.raises(ValueError): verify_asset_pack(tmp_path)
@@ -58,7 +58,7 @@ def test_asset_bytes_are_checked(tmp_path,tamper):
 
 def test_asset_path_cannot_escape_pack(tmp_path):
     manifest={'resources':[{'path':'../other','bytes':0,'sha256':'x'}]}
-    (tmp_path/'asset-lock.json').write_text(json.dumps(manifest))
+    (tmp_path/'asset-lock.json').write_text(json.dumps(manifest), encoding='utf8')
     with pytest.raises(ValueError,match='outside'): verify_asset_pack(tmp_path)
 
 @pytest.mark.parametrize('triangles',[[],[[1,2,3]],[[[0,0,float('nan')],[1,0,0],[0,1,0]]]])
@@ -74,11 +74,11 @@ def detail_fixture(tmp_path):
     scene.apply_transform(ENU_TO_GLTF)
     data=scene.export(file_type='glb'); (tmp_path/'details.glb').write_bytes(data)
     lock=tmp_path/'download-lock.json'
-    lock.write_text(json.dumps({'resources':[]}))
+    lock.write_text(json.dumps({'resources':[]}), encoding='utf8')
     origin={'longitude':139.76,'latitude':35.68,'ellipsoid_height_m':0}
     meta={'frame':origin,'glb_sha256':hashlib.sha256(data).hexdigest(),
           'download_lock_sha256':hashlib.sha256(lock.read_bytes()).hexdigest()}
-    (tmp_path/'details-manifest.json').write_text(json.dumps(meta))
+    (tmp_path/'details-manifest.json').write_text(json.dumps(meta), encoding='utf8')
     return origin
 
 def test_real_detail_axis_and_surface_sampling(tmp_path):
@@ -93,7 +93,7 @@ def test_detail_identity_drift_fails(tmp_path,changed):
     origin=detail_fixture(tmp_path)
     if changed=='origin': origin={**origin,'longitude':origin['longitude']+.001}
     elif changed=='bytes': (tmp_path/'details.glb').write_bytes(b'changed')
-    else: (tmp_path/'download-lock.json').write_text('{"resources":[],"changed":true}')
+    else: (tmp_path/'download-lock.json').write_text('{"resources":[],"changed":true}', encoding='utf8')
     with pytest.raises(ValueError): load_detail_road_sampler(tmp_path,origin)
 
 def test_detail_plan_changes_only_source_surface_and_preserves_input(tmp_path):

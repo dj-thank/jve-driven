@@ -57,7 +57,7 @@ def config_file(tmp_path,osm=False):
        'terrain_base':'https://tile.plateauview.mlit.go.jp/terrain/',
        'imagery_template':'https://tile.plateauview.mlit.go.jp/tiles/plateau-ortho-2023/{z}/{x}/{y}.png',
        'max_download_bytes':5_000_000,'max_download_files':100,'include_osm_centerlines':osm,'surface_role':'visual_only'}
-    path=tmp_path/'config.json';path.write_text(json.dumps(c));return path
+    path=tmp_path/'config.json';path.write_text(json.dumps(c), encoding='utf8');return path
 
 def fake_client(*,missing=None,alpha=255):
     glb=sample_glb();transform=np.linalg.inv(FRAME.ecef_to_enu).flatten(order='F').tolist()
@@ -157,7 +157,7 @@ def test_store_hash_and_tamper(tmp_path):
         with pytest.raises(RuntimeError): store.fetch(BASE+'a')
 
 def test_lock_path_traversal(tmp_path):
-    (tmp_path/'download-lock.json').write_text(json.dumps({'resources':[{'path':'../secret','bytes':0,'sha256':'a'}]}))
+    (tmp_path/'download-lock.json').write_text(json.dumps({'resources':[{'path':'../secret','bytes':0,'sha256':'a'}]}), encoding='utf8')
     with pytest.raises(ValueError): verify_lock(tmp_path)
 
 def test_osm_no_invented_lanes():
@@ -181,13 +181,13 @@ def test_fetch_build_offline_integration(tmp_path):
     scene=trimesh.load_scene(out/'visual-world.glb',process=False)
     assert len(scene.geometry)>=2
     assert all(g.visual.kind=='texture' for g in scene.geometry.values())
-    with pytest.raises(RuntimeError): require_driveable(json.loads((out/'public-world.json').read_text()))
+    with pytest.raises(RuntimeError): require_driveable(json.loads((out/'public-world.json').read_text(encoding='utf8')))
 @pytest.mark.parametrize('missing',['.glb','.terrain','.png'])
 def test_missing_data_stops_no_fake_fallback(tmp_path,missing):
     config=config_file(tmp_path);out=tmp_path/'snapshot'
     with fake_client(missing=missing) as c:
         with pytest.raises(httpx.HTTPStatusError): fetch_snapshot(config,out,client=c)
-    assert json.loads((out/'public-world.json').read_text())['stage']=='failed'
+    assert json.loads((out/'public-world.json').read_text(encoding='utf8'))['stage']=='failed'
     assert not (out/'visual-world.glb').exists()
     with pytest.raises(ValueError,match='incomplete'): build_snapshot(out)
 def test_transparent_imagery_stops(tmp_path):
@@ -196,9 +196,9 @@ def test_transparent_imagery_stops(tmp_path):
         with pytest.raises(RuntimeError,match='transparent'): fetch_snapshot(config,out,client=c)
     assert not (out/'visual-world.glb').exists()
 def test_existing_snapshot_not_overwritten(tmp_path):
-    config=config_file(tmp_path);out=tmp_path/'snapshot';out.mkdir();(out/'keep').write_text('keep')
+    config=config_file(tmp_path);out=tmp_path/'snapshot';out.mkdir();(out/'keep').write_text('keep', encoding='utf8')
     with pytest.raises(ValueError): fetch_snapshot(config,out)
-    assert (out/'keep').read_text()=='keep'
+    assert (out/'keep').read_text(encoding='utf8')=='keep'
 
 @pytest.mark.parametrize('refine,expected',[('REPLACE',['child.glb']),('ADD',['parent.glb','child.glb'])])
 def test_tiles_frontier_no_duplicate_parent(tmp_path,refine,expected):

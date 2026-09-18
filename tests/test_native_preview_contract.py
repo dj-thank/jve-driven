@@ -9,7 +9,7 @@ preview=importlib.util.module_from_spec(spec); spec.loader.exec_module(preview)
 
 def setup_args(tmp_path,monkeypatch,report):
     source=tmp_path/'render'; (source/'frames').mkdir(parents=True)
-    (source/'render-report.json').write_text(json.dumps(report))
+    (source/'render-report.json').write_text(json.dumps(report), encoding='utf8')
     monkeypatch.setattr(sys,'argv',['pack','--render',str(source),'--out',str(tmp_path/'out'),
                                    '--font',str(tmp_path/'not_accessed.ttf')])
     return source

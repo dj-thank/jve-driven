@@ -31,6 +31,8 @@ def main():
         title='実都市データの車載視点検査 | 航空写真を再投影 | Jev未接続・自動運転ではありません'
     if report.get('authored_tree_count',0):
         title='実都市の車載視点 | 舗装・樹木配置は補完 | Jev未接続・自動運転ではありません'
+    if report.get('authored_tree_grates'):
+        title='実都市の車載視点 | 舗装・樹木・根元造作は補完 | Jev未接続・自動運転ではありません'
     draw.text((40,31),title,font=font,fill='white')
     draw.rectangle((0,height-62,width,height),fill=(7,17,23,220))
     draw.text((22,height-55),'国土交通省 PLATEAU 千代田区2025等を加工 / © OpenStreetMap contributors / 地形: PLATEAU・Mapterhorn・国土地理院',font=small,fill='white')
@@ -59,8 +61,13 @@ def main():
             or abs(float(probe['format']['duration'])-len(frames)/report['fps'])>.02):
         raise ValueError('Encoded video failed frame/duration/dimension validation')
     shutil.copy2(source/'render-report.json',out/'render-report.json')
+    if report.get('material_audit_sha256'):
+        if file_hash(source/'material-audit.json')!=report['material_audit_sha256']:
+            raise ValueError('Material evidence changed since native render')
+        shutil.copy2(source/'material-audit.json',out/'material-audit.json')
     evidence={'schema':'jevdrive.native-media-evidence.v1','video_sha256':file_hash(video),
         'overlay_sha256':file_hash(overlay_path),'video':probe,'native_render':report,
+        'packager_sha256':file_hash(__file__),
         'native_render_fps_including_setup':len(frames)/report['elapsed_s'],
         'realtime_rendering_claimed':False,'jev_calls':0,'physics_simulated':False,
         'all_pngs_decoded_and_verified':True,'full_h264_decode_passed':True,
@@ -81,6 +88,7 @@ def main():
         'https://polyhaven.com/license\n'
         'https://polyhaven.com/a/tree_small_02\n'
         'Paving pattern, optional authored tree placements/species, and lighting are not surveyed Tokyo appearance.\n'
+        'Optional iron tree-root grates and soil are authored procedural appearance, not mapped Tokyo infrastructure.\n'
         'Do not infer geometric accuracy, real-time rendering or driving safety.\n',encoding='utf8')
     print(json.dumps({'output':str(out),'frames':len(frames),'video_sha256':evidence['video_sha256'],
                       'seconds':probe['format']['duration'],'bytes':probe['format']['size']},indent=2))

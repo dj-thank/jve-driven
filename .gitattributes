@@ -1,0 +1,5 @@
+# Source checksums must not depend on Windows checkout line-ending conversion.
+* text=auto eol=lf
+*.glb binary
+*.png binary
+*.jpg binary

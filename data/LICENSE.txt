@@ -1,0 +1,20 @@
+OpenStreetMap data attribution and license notice
+
+© OpenStreetMap contributors
+https://www.openstreetmap.org/copyright
+Open Database License (ODbL) 1.0:
+https://opendatacommons.org/licenses/odbl/1-0/
+
+The geographic extract in data/raw/kirchberg_subset.osm and the geographic
+content of generated world/world.json, world/kirchberg.glb, the HTML viewer
+and replay files derive from OpenStreetMap. Preserve attribution and comply
+with the applicable ODbL database and Produced Work requirements when
+redistributing or publishing derivatives. The code MIT license does not
+replace these conditions.
+
+Source snapshot: 2020-08-10T00:00:00Z.
+Public fixture obtained through gboeing/osmnx; source identity and transformations
+are recorded in data/raw/PROVENANCE.json.
+
+PLATEAU and other downloaded datasets are not included in Git. Their individual
+terms, survey dates and attribution must be reviewed before redistribution.

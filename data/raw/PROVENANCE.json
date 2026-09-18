@@ -1,0 +1,22 @@
+{
+  "source_kind": "manually transcribed subset of a public OSM snapshot; not live OSM",
+  "source_repository": "gboeing/osmnx",
+  "source_path": "tests/input_data/planet_10.068,48.135_10.071,48.137.osm",
+  "upstream_git_blob_sha": "58a9755b70c8cc42fe486e09a6cce12eb7a89cc0",
+  "source_snapshot_utc": "2020-08-10T00:00:00Z",
+  "retrieved_on": "2026-09-18",
+  "source_url": "https://github.com/gboeing/osmnx/blob/main/tests/input_data/planet_10.068,48.135_10.071,48.137.osm",
+  "upstream_blob_url": "https://api.github.com/repos/gboeing/osmnx/git/blobs/58a9755b70c8cc42fe486e09a6cce12eb7a89cc0",
+  "attribution": "© OpenStreetMap contributors",
+  "license": "ODbL-1.0",
+  "license_url": "https://opendatacommons.org/licenses/odbl/1-0/",
+  "local_sha256": "cb3666c97aedb78fa61e20202f3366954a37f2c3fa8ebd650e9e382cf9770580",
+  "nodes": 137,
+  "ways": 13,
+  "transformations": [
+    "Kept 3 complete ways with highway tags and 10 complete building footprints.",
+    "Omitted unselected ways, relations and address/source tags. Retained exact selected node coordinates and way member order.",
+    "No new geographic points or measured heights were invented. Visual height and width assumptions live in the processed manifest."
+  ],
+  "selection_not_whole_neighbourhood": true
+}

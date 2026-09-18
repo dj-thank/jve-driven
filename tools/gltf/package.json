@@ -1,0 +1,12 @@
+{
+  "name": "jevdrive-geometry-decoder",
+  "private": true,
+  "type": "module",
+  "engines": {"node": ">=20"},
+  "dependencies": {
+    "@gltf-transform/core": "4.5.0",
+    "@gltf-transform/extensions": "4.5.0",
+    "draco3dgltf": "1.5.7",
+    "meshoptimizer": "0.22.0"
+  }
+}

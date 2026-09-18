@@ -1,0 +1,23 @@
+{
+  "schema": "jevdrive.public-world-config.v1",
+  "name": "Tokyo Marunouchi bounded live smoke",
+  "area_code": "13101",
+  "bounds_wgs84": [139.763, 35.68, 139.7645, 35.6812],
+  "origin": {"longitude": 139.76375, "latitude": 35.6806, "ellipsoid_height_m": 0},
+  "building_spec": "13101-bldg-lod2-texture-latest",
+  "imagery_template": "https://tile.plateauview.mlit.go.jp/tiles/plateau-ortho-2023/{z}/{x}/{y}.png",
+  "imagery_zoom": 18,
+  "terrain_base": "https://tile.plateauview.mlit.go.jp/terrain/",
+  "terrain_zoom": 15,
+  "max_download_bytes": 120000000,
+  "max_download_files": 180,
+  "include_osm_centerlines": true,
+  "surface_role": "visual_only",
+  "known_limits": [
+    "Latest identifies a catalogue selection, not capture date or 2026 street conditions.",
+    "The authoring environment could not fetch binary assets; live geometry is unverified.",
+    "LOD2 textured buildings are not street-level photogrammetry or an HD driving map.",
+    "Terrain uses a provider-fixed geoid model; epoch alignment requires independent checks.",
+    "No invented traffic signals, lanes, façades, or zero-height fallback."
+  ]
+}

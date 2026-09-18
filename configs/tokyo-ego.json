@@ -1,0 +1,30 @@
+{
+  "schema": "jevdrive.public-world-config.v1",
+  "name": "Tokyo Marunouchi 2025 ego inspection",
+  "area_code": "13101",
+  "bounds_wgs84": [
+    139.7622,
+    35.6795,
+    139.7655,
+    35.6822
+  ],
+  "origin": {
+    "longitude": 139.76385,
+    "latitude": 35.68085,
+    "ellipsoid_height_m": 0
+  },
+  "building_spec": "13101-bldg-lod2-texture-2025",
+  "imagery_template": "https://tile.plateauview.mlit.go.jp/tiles/plateau-ortho-2023/{z}/{x}/{y}.png",
+  "imagery_zoom": 19,
+  "terrain_base": "https://tile.plateauview.mlit.go.jp/terrain/",
+  "terrain_zoom": 15,
+  "max_download_bytes": 240000000,
+  "max_download_files": 400,
+  "include_osm_centerlines": true,
+  "surface_role": "visual_only",
+  "known_limits": [
+    "Public source geometry, not a surveyed driving map.",
+    "Aerial-textured LOD2 is not street-level photogrammetry.",
+    "A moving inspection camera is not autonomous driving."
+  ]
+}

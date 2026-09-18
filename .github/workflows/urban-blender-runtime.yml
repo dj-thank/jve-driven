@@ -1,0 +1,46 @@
+name: Urban Blender runtime
+on:
+  push:
+    branches: [feat/urban-asset-upgrade-20260919]
+    paths: [.github/workflows/urban-blender-runtime.yml]
+permissions:
+  contents: read
+jobs:
+  runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Fetch official pinned runtime and verify SHA256
+        shell: python
+        run: |
+          import hashlib, json, pathlib, urllib.request
+          root=pathlib.Path('blender-runtime');root.mkdir()
+          base='https://download.blender.org/release/Blender4.5/'
+          filename='blender-4.5.3-linux-x64.tar.xz'
+          def fetch(name,limit):
+              req=urllib.request.Request(base+name,headers={'User-Agent':'JveDriven-NativeRender/0.7'})
+              with urllib.request.urlopen(req,timeout=120) as r, (root/name).open('wb') as f:
+                  size=0
+                  while True:
+                      b=r.read(1024*1024)
+                      if not b:break
+                      size+=len(b)
+                      if size>limit:raise ValueError('Download budget exceeded')
+                      f.write(b)
+              return root/name
+          sums=fetch('blender-4.5.3.sha256',1000000).read_text()
+          candidates=[line.split()[0] for line in sums.splitlines() if line.split()[-1].lstrip('*')==filename]
+          if len(candidates)!=1:raise ValueError('Official checksum not found')
+          archive=fetch(filename,600_000_000)
+          h=hashlib.file_digest(archive.open('rb'),'sha256').hexdigest()
+          if h!=candidates[0]:raise ValueError('Official checksum mismatch')
+          report={'version':'4.5.3','source':base+filename,'official_checksum_source':base+'blender-4.5.3.sha256','bytes':archive.stat().st_size,'sha256':h,'verified':True}
+          (root/'runtime.json').write_text(json.dumps(report,indent=2))
+          print(json.dumps(report,indent=2))
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: urban-blender-runtime
+          path: blender-runtime
+          retention-days: 1
+          compression-level: 0
+          if-no-files-found: error

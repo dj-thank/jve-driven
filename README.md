@@ -101,3 +101,11 @@ Choiceで行動、Noulで歩行者の譲歩要否、Scoreで視界の注意度�
 - [PLATEAU Ortho](https://docs.plateauview.mlit.go.jp/datasets/ortho/)
 - [TypeSafe API](https://docs.typesafe.ai/api)
 - [データ利用条件](data/LICENSE.txt) / [同梱OSMの出典](data/raw/PROVENANCE.json)
+
+## Native car-height rendering extension
+
+実際のBlender 5.1で確認した描画経路を追加しました。[手順・出典・限界](docs/NATIVE_VISUAL_QUALITY.md)を参照してください。LOD3道路・都市設備・植生を別途取り込み、粗い地形との重なりを処理し、カメラが実際の道路面の上にいることを全フレームで検査します。
+
+取得範囲の外まで走るカメラや、最近傍の地形頂点で欠損を隠す処理は使用しません。元の航空写真を使う表示と、CC0舗装素材による任意の質感補完は区別します。建物壁面の解像度や実測精度は、この描画改善だけでは保証されません。
+
+これは自動運転の評価動画ではなく景観検査のアニメーションです。Jev呼び出し・物理シミュレーション・交通規則検証は含みません。動画の30fpsは書き出し・再生の設定で、リアルタイム描画性能を示しません。

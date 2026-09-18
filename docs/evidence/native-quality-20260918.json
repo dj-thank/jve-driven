@@ -1,0 +1,111 @@
+{
+  "schema": "jevdrive.native-quality-summary.v1",
+  "date": "2026-09-18",
+  "script_content_matches_commit_except_line_endings": true,
+  "native_render": {
+    "schema": "jevdrive.native-render.v1",
+    "blender": "5.1.2",
+    "engine": "BLENDER_EEVEE",
+    "device": "EEVEE graphics device",
+    "samples_requested": 128,
+    "source_glb_sha256": "d4566d7b03ad71d7f54d1ea1767cedf78e7c375a5431583feb26386fce1f8821",
+    "plan_sha256": "76cd818f0d10d55d0efce58b358ed86b5ff4fbde82f50b6f12c7cf9baac36cb3",
+    "details_glb_sha256": "9cb62f812751d5e5f5a1137f6064f06614d9e15628a728a3f95d08668a2afd4a",
+    "road_appearance_sha256": "9a7209c83520d4b8fe7b7331949fe11d95eb3f431cbf7b73d64269fed581ed52",
+    "ground_cutout_sha256": "241499cbae49c95a9c7636e8c795cba9013f75c14b09f0766d4406f4c3e99700",
+    "asset_lock_sha256": "be1a7153fb9169cfb688ffa205b4eb107b4bf4cec0781f3f86e4d74ab1c80c1f",
+    "script_sha256": "ff45c496941aac94e465e20c072f81c9d51c5ee23057a624e30c911a54c895e8",
+    "frames_rendered": 300,
+    "coverage_checks": 300,
+    "max_height_residual_m": 0.00014034741388257999,
+    "tree_instances": [],
+    "source_only": false,
+    "assumed_building_finish": [
+      {
+        "material": "Material_10",
+        "old_roughness": 0.0,
+        "new_roughness": 0.75
+      }
+    ],
+    "generic_paving_albedo": true,
+    "elapsed_s": 1033.2389679999906,
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "jev_calls": 0,
+    "physics_simulated": false,
+    "driveable": false,
+    "photorealism_verified": false
+  },
+  "video": {
+    "programs": [],
+    "stream_groups": [],
+    "streams": [
+      {
+        "codec_name": "h264",
+        "width": 1920,
+        "height": 1080,
+        "avg_frame_rate": "30/1",
+        "nb_frames": "300"
+      }
+    ],
+    "format": {
+      "duration": "10.000000",
+      "size": "8404911"
+    }
+  },
+  "video_sha256": "2319b1026dc37b8e7053f786ce8b89f89d7fafefbb22b1e5c2e6f5fb95da0476",
+  "tests_on_isolated_tree": 224,
+  "source_base": {
+    "sha256": "d4566d7b03ad71d7f54d1ea1767cedf78e7c375a5431583feb26386fce1f8821",
+    "bytes": 184712784,
+    "building_triangles": 97257,
+    "terrain_triangles": 2358,
+    "verified_input_resources": 64,
+    "glb_convention": "Y-up, metres",
+    "blender_executed": false,
+    "unreal_executed": false,
+    "real_world_accuracy_verified": false
+  },
+  "lod3_details": {
+    "sha256": "9cb62f812751d5e5f5a1137f6064f06614d9e15628a728a3f95d08668a2afd4a",
+    "bytes": 148425876,
+    "triangles": 44495,
+    "layers": [
+      {
+        "type": "frn",
+        "triangles": 1275,
+        "year": 2025
+      },
+      {
+        "type": "tran",
+        "triangles": 33705,
+        "year": 2025
+      },
+      {
+        "type": "veg",
+        "triangles": 1740,
+        "year": 2025
+      },
+      {
+        "type": "veg",
+        "triangles": 7775,
+        "year": 2025
+      }
+    ]
+  },
+  "appearance_assets_used": [
+    "kloofendal_48d_partly_cloudy_puresky",
+    "pavement_01"
+  ],
+  "downloaded_but_not_instanced": [
+    "tree_small_02"
+  ],
+  "native_render_fps_including_setup": 0.2903490956992272,
+  "geometric_accuracy_verified": false,
+  "real_time_rendering_claimed": false,
+  "jev_calls": 0,
+  "physics_simulated": false,
+  "renderer_source_commit": "d7bcd475a3ba0c793575b279c2c49bfdb87a9b9b",
+  "test_scope": "Isolated worktree based on d7bcd47, including the media packager and four additional negative controls; final GitHub head is recorded in PR #6."
+}

@@ -1,0 +1,56 @@
+name: hero-assets-native-review
+on:
+  push:
+    branches: [feat/hero-assets-cloud-20260918]
+    paths: ['tools/hero_*.py', 'src/jevdrive/hero_assets.py', 'tests/test_hero_assets.py', '.github/workflows/hero-assets.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: hero-native-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env:
+      PYTHONUTF8: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with: {persist-credentials: false}
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with: {python-version: '3.12'}
+      - run: python -m pip install -e '.[dev]'
+      - run: python -m pytest -q --junitxml=runs/hero-tests.xml
+      - name: Acquire official Blender 4.5.3 and verify its published checksum
+        run: |
+          mkdir -p /tmp/hero-blender
+          cd /tmp/hero-blender
+          curl -fL --retry 2 --max-time 180 -O https://download.blender.org/release/Blender4.5/blender-4.5.3-linux-x64.tar.xz
+          curl -fL --retry 2 --max-time 30 -O https://download.blender.org/release/Blender4.5/blender-4.5.3.sha256
+          grep 'blender-4.5.3-linux-x64.tar.xz' blender-4.5.3.sha256 | sha256sum --check
+          tar -xf blender-4.5.3-linux-x64.tar.xz
+          echo '/tmp/hero-blender/blender-4.5.3-linux-x64' >> "$GITHUB_PATH"
+      - name: Download licensed source models and material maps
+        run: python tools/hero_assets_fetch.py --out runs/hero-assets
+      - name: Build native assets, export GLBs and render actual path-traced review images
+        run: blender --background --factory-startup --disable-autoexec --threads 4 --python-exit-code 2 --python tools/hero_render_demo.py -- --assets runs/hero-assets --out runs/hero-demo
+      - name: Package completed evidence, never publish fonts or credentials
+        if: always()
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import shutil
+          if Path('runs/hero-demo').is_dir(): shutil.make_archive('runs/hero-demo', 'zip', 'runs/hero-demo')
+          if Path('runs/hero-assets').is_dir(): shutil.make_archive('runs/hero-source-assets', 'zip', 'runs/hero-assets')
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: hero-assets-native-evidence
+          path: |
+            runs/hero-demo.zip
+            runs/hero-source-assets.zip
+            runs/hero-tests.xml
+          retention-days: 14
+          if-no-files-found: error

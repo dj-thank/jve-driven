@@ -1,0 +1,95 @@
+name: asset-studio-native-review
+on:
+  push:
+    branches: [feat/urban-external-assets-20260919]
+    paths: ['tools/asset_studio/native_assets.py', 'tools/asset_studio/render_review.py', '.github/workflows/asset-studio-native.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: asset-studio-native-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  native-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 28
+    env:
+      OMP_NUM_THREADS: '4'
+      OPENBLAS_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with: {persist-credentials: false}
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with: {python-version: '3.13'}
+      - run: python -m pip install bpy==5.1.2 Pillow==12.3.0
+      - name: Reuse successful source acquisitions and prior validated car/tree exports
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh run download 35386939547 -n reviewed-external-assets -D runs/assets
+          gh run download 35388104419 -n reviewed-business-avatars -D runs/people
+          gh run download 35385727394 -n hero-library-and-sources -D runs/legacy-artifact
+          python - <<'PY'
+          import zipfile,pathlib
+          archive=next(pathlib.Path('runs/legacy-artifact').rglob('hero-library.zip'))
+          root=pathlib.Path('runs/legacy-library').resolve();root.mkdir(parents=True)
+          with zipfile.ZipFile(archive) as z:
+              for item in z.infolist():
+                  p=(root/item.filename).resolve()
+                  if not p.is_relative_to(root):raise ValueError('Unsafe archive member')
+                  if p.suffix.lower() in {'.ttf','.otf','.ttc','.woff','.woff2'}:raise ValueError('Unexpected font')
+              z.extractall(root)
+          PY
+      - name: Actually import, normalize, export and render (not mocked)
+        run: python tools/asset_studio/render_review.py --assets runs/assets --people runs/people --legacy-library runs/legacy-library --out runs/native-review --samples 16 --width 1280
+      - name: Add visible provenance to separate review copies and record hashes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image,ImageDraw,ImageFont
+          import json,hashlib
+          root=Path('runs/native-review');report=json.loads((root/'review.json').read_text())
+          if not report['completed']:raise ValueError('Incomplete native scene')
+          try:font=ImageFont.truetype('DejaVuSans.ttf',15)
+          except OSError:font=ImageFont.load_default()
+          report['preview_copies']=[]
+          for record in report['images']:
+              src=root/record['name']
+              if hashlib.sha256(src.read_bytes()).hexdigest()!=record['sha256']:raise ValueError('Image changed')
+              im=Image.open(src).convert('RGB');d=ImageDraw.Draw(im)
+              d.rectangle((0,0,im.width,34),fill=(15,20,24))
+              d.text((14,9),'AUTHORED ASSET REVIEW / Blender Cycles / NOT real Tokyo / NO Jev or vehicle physics',font=font,fill='white')
+              d.rectangle((0,im.height-48,im.width,im.height),fill=(15,20,24))
+              d.text((14,im.height-41),'Models: Mike Pan / Morgan McGuire (CC0), Poly Haven (CC0), Microsoft Rocketbox (MIT)',font=font,fill='white')
+              d.text((14,im.height-21),'Powered by Poly Haven. Poses, placements and material tuning are authored. No photorealism certification.',font=font,fill='white')
+              out=root/('review-'+src.stem+'.jpg');im.save(out,quality=94)
+              report['preview_copies'].append({'name':out.name,'sha256':hashlib.sha256(out.read_bytes()).hexdigest()})
+          (root/'review.json').write_text(json.dumps(report,indent=2))
+          PY
+      - name: Preserve outputs and code without distributing fonts or a Blender runtime
+        if: always()
+        run: |
+          python - <<'PY'
+          import pathlib,zipfile,shutil
+          root=pathlib.Path('runs/native-review')
+          if root.exists():
+              shutil.copytree('tools/asset_studio',root/'reproduce',dirs_exist_ok=True)
+              for p in root.rglob('*'):
+                  if p.is_file() and p.suffix.lower() in {'.ttf','.otf','.ttc','.woff','.woff2','.pfb','.pfa'}:raise ValueError('Font in delivery')
+              with zipfile.ZipFile('runs/native-review.zip','w',compression=zipfile.ZIP_DEFLATED,compresslevel=1) as z:
+                  for p in root.rglob('*'):
+                      if p.is_file() and '__pycache__' not in p.parts:z.write(p,p.relative_to(root))
+          PY
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: asset-studio-native-review
+          path: |
+            runs/native-review.zip
+            runs/native-review/review.json
+            runs/native-review/review-*.jpg
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 1

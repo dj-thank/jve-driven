@@ -1,0 +1,30 @@
+name: asset-studio-acquisition
+on:
+  push:
+    branches: [feat/urban-external-assets-20260919]
+    paths: ['tools/asset_studio/acquire.py', '.github/workflows/asset-studio.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: asset-studio-acquisition-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  public-assets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Download reviewed CC0 assets without credentials or paid APIs
+        run: python tools/asset_studio/acquire.py --out runs/external-assets
+      - name: Preserve source assets and evidence (no fonts, no user files)
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: reviewed-external-assets
+          path: runs/external-assets
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 1

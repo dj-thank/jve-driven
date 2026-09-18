@@ -30,8 +30,8 @@ jobs:
               try:
                   data=json.loads(fetch('https://api.polyhaven.com/files/'+asset,root/asset/'catalog.json'))
                   fetch('https://api.polyhaven.com/info/'+asset,root/asset/'info.json')
-                  for channel in ['diff','nor_gl','arm']:
-                      entry=data[channel]['2k'].get('png') or data[channel]['2k']['jpg']
+                  for channel,provider_key in [('diff','Diffuse'),('nor_gl','nor_gl'),('arm','arm')]:
+                      entry=data[provider_key]['2k'].get('png') or data[provider_key]['2k']['jpg']
                       ext=pathlib.PurePosixPath(urllib.parse.urlsplit(entry['url']).path).suffix
                       fetch(entry['url'],root/asset/(channel+ext),entry.get('md5'))
               except Exception as e:report['errors'].append({'asset':asset,'error':str(e)})

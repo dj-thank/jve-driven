@@ -15,7 +15,7 @@
   },
   "building_spec": "13101-bldg-lod2-texture-2025",
   "imagery_template": "https://tile.plateauview.mlit.go.jp/tiles/plateau-ortho-2023/{z}/{x}/{y}.png",
-  "imagery_zoom": 19,
+  "imagery_zoom": 18,
   "terrain_base": "https://tile.plateauview.mlit.go.jp/terrain/",
   "terrain_zoom": 15,
   "max_download_bytes": 240000000,
@@ -25,6 +25,7 @@
   "known_limits": [
     "Public source geometry, not a surveyed driving map.",
     "Aerial-textured LOD2 is not street-level photogrammetry.",
-    "A moving inspection camera is not autonomous driving."
+    "A moving inspection camera is not autonomous driving.",
+    "Native zoom 19 tile 465686/206450 returned HTTP 404 on 2026-09-18; explicitly use native zoom 18, not invented or AI-upscaled detail."
   ]
 }

@@ -2,6 +2,13 @@ name: real-public-data-ego-view
 on:
   push:
     branches: [feat/ego-public-world]
+    paths:
+      - "src/jevdrive/egoview.py"
+      - "src/jevdrive/publicworld/**"
+      - "configs/tokyo-ego.json"
+      - "tools/*ego_capture.py"
+      - "docs/EGO_DATA_LICENSES.md"
+      - ".github/workflows/ego-view.yml"
   workflow_dispatch:
 permissions:
   contents: read
@@ -42,5 +49,8 @@ jobs:
             runs/ego/delivery/
             runs/ego/render-evidence.json
             runs/ego/capture.json
+            runs/ego/source/public-world.json
+            runs/ego/source/download-lock.json
+            runs/ego/layers/*/download-lock.json
           if-no-files-found: warn
           retention-days: 14

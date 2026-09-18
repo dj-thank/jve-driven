@@ -15,3 +15,4 @@ reports/
 world/
 web/index.html
 FILE_MANIFEST.json
+node_modules/

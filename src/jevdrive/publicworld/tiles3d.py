@@ -9,6 +9,7 @@ from urllib.parse import urljoin
 import numpy as np
 import trimesh
 from .geo import Area,Frame,GLTF_TO_ZUP
+from .compression import decode_geometry,GEOMETRY_EXTENSIONS
 
 
 def matrix(values=None):
@@ -75,14 +76,20 @@ def load_geometry(data,transform,frame:Frame,name):
     rtc=np.zeros(3);batch={}
     if data[:4]==b'b3dm': data,rtc,batch=unpack_b3dm(data)
     doc=glb_document(data)
-    unsupported={'KHR_draco_mesh_compression','EXT_meshopt_compression','KHR_texture_basisu'}
-    if unsupported.intersection(doc.get('extensionsUsed',[])):
-        raise RuntimeError('Compressed glTF requires a decoder: use Cesium or PLATEAU GIS Converter; no partial export')
+    extensions=set(doc.get('extensionsUsed',[])) | set(doc.get('extensionsRequired',[]))
+    if 'KHR_texture_basisu' in extensions:
+        raise RuntimeError('KTX2/BasisU textures require a texture decoder; refusing missing textures')
     if 'CESIUM_RTC' in doc.get('extensions',{}):
         raise RuntimeError('Legacy CESIUM_RTC extension is not supported by this offline exporter')
     for obj in doc.get('images',[])+doc.get('buffers',[]):
         if 'uri' in obj and not obj['uri'].startswith('data:'):
             raise RuntimeError('External glTF texture/buffer: snapshot is not self-contained; conversion halted')
+    decoder=None
+    if extensions & GEOMETRY_EXTENSIONS:
+        data,decoder=decode_geometry(data,extensions & GEOMETRY_EXTENSIONS)
+        remaining=set(glb_document(data).get('extensionsUsed',[]))
+        if remaining & (GEOMETRY_EXTENSIONS | {'KHR_texture_basisu'}):
+            raise ValueError('Decoder did not remove unsupported compression')
     scene=trimesh.load_scene(io.BytesIO(data),file_type='glb',process=False)
     t=np.eye(4);t[:3,3]=rtc
     final=frame.ecef_to_enu@transform@t@GLTF_TO_ZUP
@@ -93,7 +100,7 @@ def load_geometry(data,transform,frame:Frame,name):
         if not isinstance(mesh,trimesh.Trimesh): raise RuntimeError('Non-triangle glTF primitive unsupported')
         mesh.apply_transform(final@node_transform)
         if not np.isfinite(mesh.vertices).all(): raise RuntimeError('Non-finite mesh')
-        mesh.metadata.update(source_tile=name,batch_metadata=batch,height_reference='ellipsoid',role='visual_only')
+        mesh.metadata.update(source_tile=name,batch_metadata=batch,height_reference='ellipsoid',role='visual_only',geometry_decoder=decoder)
         out.add_geometry(mesh,node_name=f'{name}_{count}',geom_name=f'{name}_{count}');count+=1
     if not count: raise RuntimeError('No decoded mesh primitives; refusing empty export')
     return out

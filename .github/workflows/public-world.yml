@@ -6,6 +6,8 @@ on:
       - 'src/jevdrive/publicworld/**'
       - 'configs/**'
       - 'tools/live_world_check.py'
+      - 'tools/gltf/**'
+      - 'tools/check_decoder.py'
       - '.github/workflows/public-world.yml'
   workflow_dispatch:
 permissions:
@@ -17,6 +19,8 @@ jobs:
   acquire-build-audit:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      JEVDRIVE_DECODE_GEOMETRY: '1'
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -25,6 +29,10 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m pip install -e .
+      - name: Install exact geometry decoder dependencies (no lifecycle scripts)
+        run: npm install --ignore-scripts --no-audit --no-fund --prefix tools/gltf
+      - name: Validate actual Draco round-trip on synthetic textured geometry
+        run: python tools/check_decoder.py
       - name: Acquire real public data (120 MB / 180 resources maximum)
         run: python tools/live_world_check.py --config configs/tokyo-smoke.json --out runs/public-smoke
       - name: Preserve diagnostics, never publish unreviewed imagery or meshes

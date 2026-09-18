@@ -22,10 +22,14 @@ def audit_snapshot(root: Path) -> dict:
     if not scene.geometry or not np.isfinite(scene.bounds).all():
         raise ValueError('Empty or non-finite scene')
     triangles = textured = 0
+    geometry_decoders = {}
     for mesh in scene.geometry.values():
         if not isinstance(mesh, trimesh.Trimesh) or not np.isfinite(mesh.vertices).all():
             raise ValueError('Non-triangle or non-finite geometry')
         triangles += len(mesh.faces)
+        decoder = mesh.metadata.get("geometry_decoder")
+        if decoder:
+            geometry_decoders[decoder["input_sha256"]] = decoder
         if mesh.visual.kind == 'texture' and mesh.visual.uv is not None:
             if not np.isfinite(mesh.visual.uv).all():
                 raise ValueError('Non-finite texture coordinates')
@@ -53,6 +57,7 @@ def audit_snapshot(root: Path) -> dict:
         'pixel_spacing_is_not_survey_accuracy': True,
         'road_centerlines': meta.get('road_way_count', 0),
         'appearance': meta['appearance'],
+        'geometry_decoders': list(geometry_decoders.values()),
         'capture_dates_verified': False, 'geometric_accuracy_verified': False,
         'street_level_photorealism_verified': False, 'driveable': False,
         'license_review': meta.get('license_review'),

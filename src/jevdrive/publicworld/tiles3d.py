@@ -10,6 +10,7 @@ import numpy as np
 import trimesh
 from .geo import Area,Frame,GLTF_TO_ZUP
 from .compression import decode_geometry,GEOMETRY_EXTENSIONS
+from .rtc import extract_cesium_rtc
 
 
 def matrix(values=None):
@@ -75,12 +76,12 @@ def glb_document(data):
 def load_geometry(data,transform,frame:Frame,name):
     rtc=np.zeros(3);batch={}
     if data[:4]==b'b3dm': data,rtc,batch=unpack_b3dm(data)
+    data,gltf_rtc,rtc_evidence=extract_cesium_rtc(data)
+    rtc=rtc+np.asarray(gltf_rtc,float)
     doc=glb_document(data)
     extensions=set(doc.get('extensionsUsed',[])) | set(doc.get('extensionsRequired',[]))
     if 'KHR_texture_basisu' in extensions:
         raise RuntimeError('KTX2/BasisU textures require a texture decoder; refusing missing textures')
-    if 'CESIUM_RTC' in doc.get('extensions',{}):
-        raise RuntimeError('Legacy CESIUM_RTC extension is not supported by this offline exporter')
     for obj in doc.get('images',[])+doc.get('buffers',[]):
         if 'uri' in obj and not obj['uri'].startswith('data:'):
             raise RuntimeError('External glTF texture/buffer: snapshot is not self-contained; conversion halted')
@@ -100,7 +101,7 @@ def load_geometry(data,transform,frame:Frame,name):
         if not isinstance(mesh,trimesh.Trimesh): raise RuntimeError('Non-triangle glTF primitive unsupported')
         mesh.apply_transform(final@node_transform)
         if not np.isfinite(mesh.vertices).all(): raise RuntimeError('Non-finite mesh')
-        mesh.metadata.update(source_tile=name,batch_metadata=batch,height_reference='ellipsoid',role='visual_only',geometry_decoder=decoder)
+        mesh.metadata.update(source_tile=name,batch_metadata=batch,height_reference='ellipsoid',role='visual_only',geometry_decoder=decoder,rtc_normalization=rtc_evidence)
         out.add_geometry(mesh,node_name=f'{name}_{count}',geom_name=f'{name}_{count}');count+=1
     if not count: raise RuntimeError('No decoded mesh primitives; refusing empty export')
     return out

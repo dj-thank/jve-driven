@@ -1,0 +1,25 @@
+name: asset-studio-people
+on:
+  push:
+    branches: [feat/urban-external-assets-20260919]
+    paths: ['tools/asset_studio/acquire_people.py', '.github/workflows/asset-studio-people.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  acquire-people:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - run: python tools/asset_studio/acquire_people.py --out runs/people
+      - if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: reviewed-business-avatars
+          path: runs/people
+          retention-days: 7
+          if-no-files-found: error
+          compression-level: 1

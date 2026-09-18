@@ -40,6 +40,7 @@ def simulate(world: dict[str,Any],scenario: str='clear',mode: str='baseline',
     yaw=math.atan2(q.y-p.y,q.x-p.x)
     speed=0.0; acceleration_previous=0.0; last_s=0.0
     service=DecisionService(max_calls=max_calls) if mode!='baseline' else None
+    steps=[]
     frames=[]; max_cte=0.0; max_jerk=0.0; collision_proxy=False
     red_line_crossing_proxy=False; max_speed=0.0
     monotonic_start=time.monotonic()
@@ -75,6 +76,8 @@ def simulate(world: dict[str,Any],scenario: str='clear',mode: str='baseline',
             if scenario=='adversarial_fixture' and ped:
                 proposal=replace(baseline(obs,now),action='proceed',probabilities={a:float(a=='proceed') for a in ('proceed','slow','yield','stop')},
                                  yield_noul=0.0,caution_score=0.0,source='test_fixture',model='deliberately_wrong_fixture')
+            # Timestamp control after polling: a reply may finish during poll().
+            now=time.monotonic()
             control=guarded_control(obs,proposal,now=now)
             target=path.interpolate(min(path.length,s+max(3.5,speed*.65)))
             steer=pure_pursuit(x,y,yaw,target.x,target.y)
@@ -96,6 +99,8 @@ def simulate(world: dict[str,Any],scenario: str='clear',mode: str='baseline',
                                'proposal_confidence':proposal.confidence if proposal else None,
                                'jev_error':service.last_error if service else None,
                                'shadow_action':shadow.action if shadow else None})
+            before=[x,y,yaw,speed]
+            counterfactual=guarded_control(obs,baseline(obs,now),now=now)
             new_speed=max(0.0,speed+control.acceleration_mps2*dt)
             mid_speed=(speed+new_speed)/2
             yaw_delta=mid_speed/2.7*math.tan(steer)*dt
@@ -103,6 +108,11 @@ def simulate(world: dict[str,Any],scenario: str='clear',mode: str='baseline',
             y+=mid_speed*math.sin(yaw+yaw_delta/2)*dt
             yaw+=yaw_delta
             speed=new_speed
+            steps.append({'frame':frame,'dt':dt,'wall_monotonic':now,
+                'wall_elapsed_s':now-monotonic_start,'observation':asdict(obs),
+                'proposal':asdict(proposal) if proposal else None,'control':asdict(control),
+                'baseline_counterfactual':asdict(counterfactual),'steer_rad':steer,
+                'before':before,'after':[x,y,yaw,speed]})
             max_speed=max(max_speed,speed)
             last_s=s
     finally:
@@ -113,7 +123,7 @@ def simulate(world: dict[str,Any],scenario: str='clear',mode: str='baseline',
             'map_source_snapshot':world['source_snapshot_utc'],
             'route_assumption':f"OSM way {road['osm_id']} with assumed 1.5m right offset",
             'route':[list(p) for p in path.coords], 'route_length_m':path.length,
-            'frames':frames,
+            'frames':frames,'control_trace_schema':'jevdrive.control-trace.v1','steps':steps,
             'metrics':{'max_cross_track_error_m':max_cte,'max_speed_mps':max_speed,
                        'max_jerk_mps3':max_jerk,'route_progress_fraction':last_s/path.length,
                        'collision_proxy':collision_proxy,'red_line_crossing_proxy':red_line_crossing_proxy,

@@ -152,7 +152,9 @@ def prism(poly: Polygon, z: float, height: float, color: list[int]) -> trimesh.T
             add_triangle([(ax,ay,z),(bx,by,z),(bx,by,z+height)])
             add_triangle([(ax,ay,z),(bx,by,z+height),(ax,ay,z+height)])
     mesh = trimesh.Trimesh(vertices=verts, faces=faces, process=True)
-    mesh.visual.face_colors = color
+    # Every prism is uniformly coloured. Store vertex colours directly so GLB
+    # export does not need trimesh's optional SciPy face-to-vertex conversion.
+    mesh.visual.vertex_colors = color
     return mesh
 
 

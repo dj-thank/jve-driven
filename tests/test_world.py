@@ -84,3 +84,18 @@ def test_kinematic_smoke(scenario):
 def test_live_requires_realtime():
     with pytest.raises(ValueError,match='realtime'):
         simulate(parse_osm(OSM),mode='jev-live')
+
+
+def test_uniform_prisms_export_without_optional_scipy_conversion(tmp_path, monkeypatch):
+    # A fresh CI environment has no SciPy. Uniform materials should not need
+    # a sparse face-to-vertex average; the geometry and colour are unchanged.
+    import trimesh.visual.color
+    def forbidden(*args, **kwargs):
+        raise AssertionError('Uniform prism colours must not request face averaging')
+    monkeypatch.setattr(trimesh.visual.color, 'face_to_vertex_color', forbidden)
+    report = export_world(OSM, tmp_path)
+    assert report['triangles'] == 4516
+    scene = trimesh.load_scene(tmp_path / 'kirchberg.glb')
+    assert all(g.visual.kind == 'vertex' for g in scene.geometry.values())
+    assert all((g.visual.vertex_colors == g.visual.vertex_colors[0]).all()
+               for g in scene.geometry.values())

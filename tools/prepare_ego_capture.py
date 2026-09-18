@@ -58,7 +58,7 @@ def prepare(config, out, spec=CameraSpec()):
         print(json.dumps({'layer': role, **{k:v for k,v in evidence.items() if k != 'tiles'}}, ensure_ascii=False), flush=True)
     if not terrain:
         raise ValueError('No actual terrain mesh')
-    roads = json.loads((base/'roads-centerlines.geojson').read_text())
+    roads = json.loads((base/'roads-centerlines.geojson').read_text(encoding='utf8'))
     capture = select_camera_path(roads, area, frame, np.array(terrain), spec,
                                  np.array(surfaces) if surfaces else None)
     scene.apply_transform(ENU_TO_GLTF)
@@ -68,7 +68,7 @@ def prepare(config, out, spec=CameraSpec()):
                    image_credits='Public data: MLIT PLATEAU / Tokyo 2025; terrain: Mapterhorn / GSI; route: OpenStreetMap contributors. Processed by Jev Drive Lab.',
                    license_review='See docs/EGO_DATA_LICENSES.md. Derived renders only; no raw city assets distributed.')
     (out/'capture.json').write_bytes(canonical(capture)+b'\n')
-    (out/'capture.sha256').write_text(sha256((out/'capture.json').read_bytes())+'\n')
+    (out/'capture.sha256').write_text(sha256((out/'capture.json').read_bytes())+'\n', encoding='utf8')
     print(json.dumps({'prepared': True, 'scene_bytes': len(data), 'route_id': capture['route']['osm_way_id'],
                       'surface': capture['route']['surface_source'], 'frames': len(capture['route']['frames'])}), flush=True)
     return capture

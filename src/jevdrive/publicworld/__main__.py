@@ -19,7 +19,7 @@ def main():
         elif a.command=='verify': result={'verified_resources':verify_sources(a.snapshot)}
         elif a.command=='audit': result=audit_snapshot(a.snapshot)
         else:
-            require_driveable(json.loads((a.snapshot/'public-world.json').read_text()));result={}
+            require_driveable(json.loads((a.snapshot/'public-world.json').read_text(encoding='utf8')));result={}
         print(json.dumps(result,indent=2,ensure_ascii=False))
     except Exception as e:
         print(f'ERROR ({type(e).__name__}): {e}',file=sys.stderr);return 2

@@ -7,8 +7,8 @@ import numpy as np
 
 
 def encode(root: Path):
-    record = json.loads((root/'capture.json').read_text())
-    render = json.loads((root/'render-evidence.json').read_text())
+    record = json.loads((root/'capture.json').read_text(encoding='utf8'))
+    render = json.loads((root/'render-evidence.json').read_text(encoding='utf8'))
     if not render['completed'] or render['capture_sha256'] != hashlib.sha256((root/'capture.json').read_bytes()).hexdigest():
         raise ValueError('Incomplete or mismatched capture evidence')
     spec = record['camera']; width, height = spec['width'], spec['height']

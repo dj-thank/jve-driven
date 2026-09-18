@@ -160,7 +160,7 @@ def build_snapshot(root:Path):
         raise ValueError('Snapshot is incomplete; cannot build')
     verify_sources(root,meta)
     # Every mesh-reference must correspond to a verified lock record.
-    lock=json.loads((root/'download-lock.json').read_text())
+    lock=json.loads((root/'download-lock.json').read_text(encoding='utf8'))
     by_path={r['path']:r for r in lock['resources']}
     for key in ('building_tiles','terrain_tiles','imagery_tiles'):
         if not meta.get(key): raise ValueError(f'Missing {key}')

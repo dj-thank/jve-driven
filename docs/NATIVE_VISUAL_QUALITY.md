@@ -33,7 +33,7 @@ blender --background --python-exit-code 2 --python tools/blender_quality_render.
 
 Use `--paving-look` instead of `--source-only` to opt into the generic photographed paving albedo/normal/roughness. It requires the route's OSM `surface=paving_stones` tag. The current look-development option applies to imported road materials, not a surveyed lane/material segmentation; do not export it as geographic truth. The source orthophoto, unmodified LOD3 tiles and their manifests remain available separately. Native vegetation is used instead of duplicating it with the generic tree pack.
 
-`--source-only` means no generic paving/tree injection. HDRI, exposure, a sun and non-metal facade finish assumptions are still rendering decisions. The source textures may already contain baked shadows; changing the sun cannot recover unobserved surfaces or remove their original lighting. The HDRI is not a photograph of Tokyo's weather.
+`--source-only` preserves imported building/road material inputs and does not inject generic paving or trees. HDRI, exposure and a sun are separate rendering choices; any prior road appearance preprocessing remains part of the input. Non-metal facade finish edits occur only in enhanced modes and are individually recorded. The source textures may already contain baked shadows; changing the sun cannot recover unobserved surfaces or remove their original lighting. The HDRI is not a photograph of Tokyo's weather.
 
 `--engine CYCLES` uses the CPU explicitly in this implementation. EEVEE is the interactive-quality path. Do not report HIP/CUDA acceleration without actually configuring and testing it. Output is a packed `.blend`, PNG frames and `render-report.json`; a Python exception is a nonzero Blender process exit.
 

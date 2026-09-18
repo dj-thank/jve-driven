@@ -14,7 +14,7 @@ def main():
         raise RuntimeError('Use background mode; an open user project will not be replaced')
     root = args.capture.resolve()
     data = (root/'capture.json').read_bytes()
-    if hashlib.sha256(data).hexdigest() != (root/'capture.sha256').read_text().strip():
+    if hashlib.sha256(data).hexdigest() != (root/'capture.sha256').read_text(encoding='utf8').strip():
         raise ValueError('Capture manifest changed')
     record = json.loads(data)
     if record['mode'] != 'camera_inspection_not_driving' or record['driveable'] is not False:

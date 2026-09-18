@@ -9,5 +9,5 @@ for name in SCENARIOS:
     result=simulate(world,scenario=name,mode='baseline')
     write_run(result,ROOT/'reports'/f'{name}.json')
     summary[name]=result['metrics']
-(ROOT/'reports/smoke_summary.json').write_text(json.dumps(summary,indent=2))
+(ROOT/'reports/smoke_summary.json').write_text(json.dumps(summary,indent=2), encoding='utf8')
 print('8 offline smoke runs completed. Actual Jev calls: 0.')

@@ -14,7 +14,7 @@ OSM=ROOT/'data/raw/kirchberg_subset.osm'
 
 
 def test_input_hash_and_real_ids():
-    m=json.loads((ROOT/'data/raw/PROVENANCE.json').read_text())
+    m=json.loads((ROOT/'data/raw/PROVENANCE.json').read_text(encoding='utf8'))
     assert hashlib.sha256(OSM.read_bytes()).hexdigest()==m['local_sha256']
     w=parse_osm(OSM)
     assert len(w['roads'])==3 and len(w['buildings'])==10
@@ -65,7 +65,7 @@ def test_mph():
  '<osm><node id="1" lat="999" lon="0"/></osm>',
  '<html/>'])
 def test_invalid_maps_rejected(tmp_path,badxml):
-    p=tmp_path/'bad.osm';p.write_text(badxml)
+    p=tmp_path/'bad.osm';p.write_text(badxml, encoding='utf8')
     with pytest.raises(ValueError): parse_osm(p)
 
 

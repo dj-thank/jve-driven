@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jev-drive-lab"
+version = "0.3.0"
+description = "A real-map, simulation-only research workbench for TypeSafe Jev decisions"
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.24,<3", "pyproj>=3.6,<4", "shapely>=2.0,<3", "trimesh>=4.0,<5", "httpx>=0.28,<1", "Pillow>=10,<13"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<10"]
+test = ["pytest>=8,<10"]
+carla-agent = ["networkx>=3,<4", "scipy>=1.10,<2", "shapely>=2.0,<3"]
+
+[project.scripts]
+jevdrive = "jevdrive.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "-ra"

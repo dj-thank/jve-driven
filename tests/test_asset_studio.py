@@ -26,7 +26,7 @@ def test_download_does_not_leave_reviewed_hosts(url):
 def locked_fixture(root):
     data=b'synthetic-model';(root/'model.glb').write_bytes(data)
     row={'path':'model.glb','bytes':len(data),'sha256':hashlib.sha256(data).hexdigest()}
-    (root/'download-lock.json').write_text(json.dumps({'resources':[row]}));return row
+    (root/'download-lock.json').write_text(json.dumps({'resources':[row]}),encoding='utf8');return row
 
 
 def test_lock_checks_actual_bytes(tmp_path):
@@ -42,7 +42,7 @@ def test_invalid_source_manifest(tmp_path,damage):
     elif damage=='outside':row['path']='../model.glb'
     elif damage=='size':row['bytes']=True
     else:rows=[]
-    (tmp_path/'download-lock.json').write_text(json.dumps({'resources':rows}))
+    (tmp_path/'download-lock.json').write_text(json.dumps({'resources':rows}),encoding='utf8')
     with pytest.raises(ValueError):verify_downloads(tmp_path)
 
 
@@ -123,6 +123,6 @@ def test_publisher_mismatch_is_not_saved(tmp_path,expected):
 
 
 def test_preserve_existing_directory(tmp_path):
-    target=tmp_path/'out';target.mkdir();(target/'keep').write_text('keep')
+    target=tmp_path/'out';target.mkdir();(target/'keep').write_text('keep',encoding='utf8')
     with pytest.raises(FileExistsError):Store(target)
-    assert (target/'keep').read_text()=='keep'
+    assert (target/'keep').read_text(encoding='utf8')=='keep'

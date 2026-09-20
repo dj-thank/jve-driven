@@ -148,7 +148,7 @@ def reviewed_plant(root):
 
 
 def load_reused(root,key,kind):
-    root=Path(root);report=json.loads((root/'asset-export.json').read_text())
+    root=Path(root);report=json.loads((root/'asset-export.json').read_text(encoding='utf8'))
     path=root/'models'/(key+'.glb');record=report['assets'][key]
     if sha(path)!=record['sha256']:raise ValueError('Reused native export changed')
     objects=import_gltf(path);ground_objects(objects);lo,hi=bounds(objects)

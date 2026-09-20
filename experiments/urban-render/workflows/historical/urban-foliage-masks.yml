@@ -1,0 +1,32 @@
+name: Urban foliage masks
+on:
+  push:
+    branches: [feat/urban-asset-upgrade-20260919]
+    paths: [.github/workflows/urban-foliage-masks.yml]
+permissions:
+  contents: read
+jobs:
+  masks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fetch original CC0 leaf masks with provider checksums
+        shell: python
+        run: |
+          import pathlib,urllib.request,hashlib,json
+          root=pathlib.Path('foliage-masks');root.mkdir()
+          records=[]
+          for asset,expected in [('tree_small_02','63199ba87a9e8928424bd8c3b8017bd0'),('potted_plant_01','16b9d6529665f89b069696f46ffa3f36')]:
+              url=f'https://dl.polyhaven.org/file/ph-assets/Models/png/1k/{asset}/{asset}_leaves_alpha_1k.png'
+              request=urllib.request.Request(url,headers={'User-Agent':'JveDriven-FoliageReview/0.7 (dj-thank/jve-driven)'})
+              with urllib.request.urlopen(request,timeout=45) as r:blob=r.read(1_000_001)
+              if len(blob)>1_000_000 or hashlib.md5(blob).hexdigest()!=expected:raise ValueError('Mask integrity check failed')
+              path=root/asset/'leaves_alpha.png';path.parent.mkdir();path.write_bytes(blob)
+              records.append({'path':str(path.relative_to(root)),'url':url,'bytes':len(blob),'sha256':hashlib.sha256(blob).hexdigest(),'provider_md5':expected,'license':'CC0-1.0'})
+          (root/'intake.json').write_text(json.dumps({'schema':'urban.asset-intake.v1','files':records,'errors':[]},indent=2))
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: urban-foliage-masks
+          path: foliage-masks
+          retention-days: 7
+          if-no-files-found: error

@@ -33,6 +33,11 @@ jobs:
           python-version: ${{ matrix.python }}
       - run: python -m pip install -e ".[dev]"
       - run: python -m pytest -q --junitxml=reports/pytest.xml
+      - name: Windows locale without forced UTF-8
+        if: runner.os == 'Windows'
+        env:
+          PYTHONUTF8: '0'
+        run: python -m pytest -q --junitxml=reports/pytest-native-locale.xml
       - run: python -m compileall -q src tools
       - run: python tools/check_repository.py
       - run: python -m jevdrive build-world
@@ -44,6 +49,7 @@ jobs:
           name: offline-${{ matrix.os }}-py${{ matrix.python }}
           path: |
             reports/pytest.xml
+            reports/pytest-native-locale.xml
             reports/smoke_summary.json
             world/BUILD_REPORT.json
             web/index.html

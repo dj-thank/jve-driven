@@ -1,0 +1,74 @@
+name: Urban public asset intake
+on:
+  push:
+    branches: [feat/urban-asset-upgrade-20260919]
+    paths: [.github/workflows/urban-asset-intake.yml]
+permissions:
+  contents: read
+jobs:
+  intake:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Fetch bounded public assets (no credentials)
+        shell: python
+        run: |
+          import hashlib, json, pathlib, urllib.request, time
+          root = pathlib.Path('asset-intake'); root.mkdir()
+          report = {'schema':'urban.asset-intake.v1','files':[], 'errors':[], 'source':'public assets only', 'purchases':0}
+          total = 0
+          def fetch(url, dest, md5=None):
+              global total
+              host = urllib.parse.urlsplit(url).hostname
+              if host not in {'api.polyhaven.com','dl.polyhaven.org','raw.githubusercontent.com','api.github.com'}:
+                  raise ValueError('Unexpected host: '+str(host))
+              req=urllib.request.Request(url, headers={'User-Agent':'JveDriven-AssetReview/0.7 (dj-thank/jve-driven)'})
+              with urllib.request.urlopen(req, timeout=80) as r:
+                  b=r.read(180_000_001)
+              if len(b)>180_000_000 or total+len(b)>420_000_000:
+                  raise ValueError('Download budget exceeded')
+              if md5 and hashlib.md5(b).hexdigest()!=md5:
+                  raise ValueError('Provider checksum mismatch')
+              total += len(b); dest.parent.mkdir(parents=True,exist_ok=True);dest.write_bytes(b)
+              report['files'].append({'path':str(dest.relative_to(root)), 'url':url,'bytes':len(b),'sha256':hashlib.sha256(b).hexdigest(),'provider_md5':md5})
+              return b
+          def json_url(url,dest):
+              return json.loads(fetch(url,dest))
+          # Pin the original CC0 coupe to a concrete upstream commit and preserve its legal notice.
+          try:
+              commit=json_url('https://api.github.com/repos/KhronosGroup/glTF-Sample-Assets/commits/main',root/'khronos-commit.json')['sha']
+              prefix='https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/'+commit+'/Models/ToyCar/'
+              fetch(prefix+'README.md',root/'toy_car'/'README.md')
+              fetch(prefix+'glTF-Binary/ToyCar.glb',root/'toy_car'/'ToyCar.glb')
+          except Exception as e: report['errors'].append({'asset':'toy_car','error':str(e)})
+          # Individual Poly Haven glTF assets; do not scrape the website or fetch whole catalogues.
+          for asset in ['tree_small_02','potted_plant_01','modern_outdoor_chair']:
+              try:
+                  data=json_url('https://api.polyhaven.com/files/'+asset,root/asset/'catalog.json')
+                  choices=data['gltf']['1k']; entry=choices.get('gltf') or next(iter(choices.values()))
+                  path=root/asset/pathlib.PurePosixPath(urllib.parse.urlsplit(entry['url']).path).name
+                  fetch(entry['url'],path,entry.get('md5'))
+                  for relative, resource in entry.get('include',{}).items():
+                      rel=pathlib.PurePosixPath(relative)
+                      if rel.is_absolute() or '..' in rel.parts: raise ValueError('Unsafe resource path')
+                      fetch(resource['url'],root/asset/rel,resource.get('md5'))
+                  (root/asset/'LICENSE.txt').write_text('Poly Haven asset '+asset+'\nCC0-1.0\nhttps://polyhaven.com/a/'+asset+'\nhttps://polyhaven.com/license\n',encoding='utf8')
+              except Exception as e: report['errors'].append({'asset':asset,'error':str(e)})
+          try:
+              asset='kloppenheim_03_puresky'
+              data=json_url('https://api.polyhaven.com/files/'+asset,root/'sky'/'catalog.json')
+              entry=data['hdri']['1k']['hdr']
+              fetch(entry['url'],root/'sky'/'environment.hdr',entry.get('md5'))
+              (root/'sky'/'LICENSE.txt').write_text('Poly Haven: Kloppenheim 03 Pure Sky, CC0-1.0\nhttps://polyhaven.com/a/kloppenheim_03_puresky\n',encoding='utf8')
+          except Exception as e: report['errors'].append({'asset':'sky','error':str(e)})
+          report['total_bytes']=total;report['completed_utc']=time.strftime('%Y-%m-%dT%H:%M:%SZ',time.gmtime())
+          (root/'intake.json').write_text(json.dumps(report,indent=2),encoding='utf8')
+          print(json.dumps({'files':len(report['files']),'bytes':total,'errors':report['errors']},indent=2))
+      - name: Publish exact intake bytes and provenance
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: urban-public-asset-intake
+          path: asset-intake
+          retention-days: 7
+          if-no-files-found: error

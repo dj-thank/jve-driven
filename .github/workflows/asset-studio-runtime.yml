@@ -1,0 +1,46 @@
+name: asset-studio-runtime
+on:
+  push:
+    branches: [feat/urban-external-assets-20260919]
+    paths: ['.github/workflows/asset-studio-runtime.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  prepare-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.13'
+      - name: Download exact official wheel and verify publisher SHA-256
+        run: |
+          python -m pip download --no-deps --only-binary=:all: bpy==5.1.2 zstandard==0.24.0 -d wheels
+          echo '2179229588cbb7c4a6c2b51dcf0526cbb800f8bd15f0d74558834d7df9f5a528  wheels/bpy-5.1.2-cp313-cp313-manylinux_2_28_x86_64.whl' | sha256sum --check
+      - name: Prepare runtime excluding every font file (never distribute fonts)
+        run: |
+          python - <<'PY'
+          import pathlib,zipfile,json,hashlib
+          root=pathlib.Path('runtime');root.mkdir()
+          records=[];excluded=[]
+          fonts={'.ttf','.otf','.ttc','.woff','.woff2','.pfb','.pfa','.fnt','.bdf','.pcf'}
+          for wheel in pathlib.Path('wheels').glob('*.whl'):
+              records.append({'wheel':wheel.name,'sha256':hashlib.sha256(wheel.read_bytes()).hexdigest()})
+              with zipfile.ZipFile(wheel) as z:
+                  for item in z.infolist():
+                      p=pathlib.PurePosixPath(item.filename)
+                      if p.suffix.lower() in fonts or 'fonts' in [v.lower() for v in p.parts]:
+                          excluded.append(item.filename);continue
+                      if p.is_absolute() or '..' in p.parts:raise ValueError('Unsafe package path')
+                      if item.is_dir():continue
+                      target=root/p;target.parent.mkdir(exist_ok=True,parents=True);target.write_bytes(z.read(item))
+          (root/'runtime-manifest.json').write_text(json.dumps({'purpose':'internal rendering runtime; not part of project asset delivery','wheels':records,'font_files_excluded':excluded,'font_files_included':0},indent=2))
+          assert not any(p.suffix.lower() in fonts for p in root.rglob('*') if p.is_file())
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: font-free-blender-runtime
+          path: runtime
+          retention-days: 1
+          compression-level: 1

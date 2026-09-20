@@ -98,7 +98,7 @@ class DownloadStore:
 
 def verify_lock(root:Path):
     root=Path(root).resolve()
-    data=json.loads((root/'download-lock.json').read_text())
+    data=json.loads((root/'download-lock.json').read_text(encoding='utf8'))
     seen_urls=set();seen_paths=set()
     for r in data['resources']:
         p=(root/r['path']).resolve()

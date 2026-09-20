@@ -1,0 +1,45 @@
+name: manual-jev-decision-evidence
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: jev-live-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  shadow-then-live:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -e ".[dev]"
+      - run: python -m pytest -q
+      - run: python tools/check_repository.py
+      - name: Shadow-only real inference; never replace failure with a fixture
+        env:
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+        run: python tools/record_jev_evidence.py --mode jev-shadow --seconds 12 --max-calls 24 --out runs/jev-shadow
+      - name: Bounded real-inference control; require matched responses and motion
+        env:
+          TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+        run: python tools/record_jev_evidence.py --mode jev-live --seconds 12 --max-calls 24 --out runs/jev-live
+      - name: Application evidence only, never authorization or environment files
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: jev-decision-evidence
+          path: |
+            runs/jev-shadow/run.json
+            runs/jev-shadow/decision-audit.json
+            runs/jev-shadow/execution.json
+            runs/jev-live/run.json
+            runs/jev-live/decision-audit.json
+            runs/jev-live/execution.json
+          retention-days: 14
+          if-no-files-found: warn
